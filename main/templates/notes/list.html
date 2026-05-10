@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Notas — Writara{% endblock %}
+
+{% block content %}
+<div class="page fade-in">
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="page-title" style="margin-bottom:0">Notas</h1>
+    <div style="display:flex;gap:8px">
+      <a href="/notes/graph/" class="btn btn--ghost btn--sm">◎ Grafo</a>
+      <a href="/notes/new/" class="btn btn--primary">+ Nueva</a>
+    </div>
+  </div>
+
+  <!-- Search + tag filters -->
+  <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap">
+    <form method="get" style="flex:1;min-width:200px">
+      <input type="text" name="q" value="{{ search_q }}" class="form-input" placeholder="Buscar en notas…" style="max-width:320px">
+      {% if tag_filter %}<input type="hidden" name="tag" value="{{ tag_filter }}">{% endif %}
+    </form>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+      <a href="/notes/" class="tag {% if not tag_filter %}tag--accent{% endif %}">Todas</a>
+      {% for tag in tags %}
+      <a href="/notes/?tag={{ tag.name }}" class="tag {% if tag_filter == tag.name %}tag--accent{% endif %}">{{ tag.name }}</a>
+      {% endfor %}
+    </div>
+  </div>
+
+  {% if inbox %}
+  <div class="mb-6">
+    <div class="section-title">📥 Inbox ({{ inbox.count }})</div>
+    <div class="card-grid">
+      {% for note in inbox %}
+      <a href="/notes/{{ note.slug }}/edit/" class="card">
+        <div class="card__title">{{ note.title }}</div>
+        <div class="card__preview">{{ note.content|striptags|truncatechars:80 }}</div>
+        <div class="card__meta"><span>{{ note.created_at|timesince }} ago</span></div>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% if notes %}
+  <div class="card-grid">
+    {% for note in notes %}
+    <a href="/notes/{{ note.slug }}/" class="card">
+      <div class="card__title">{{ note.title }}</div>
+      {% if note.content %}
+      <div class="card__preview">{{ note.content|striptags|truncatechars:100 }}</div>
+      {% endif %}
+      <div class="card__footer">
+        <div style="display:flex;gap:4px;flex-wrap:wrap">
+          {% for tag in note.tags.all %}
+          <span class="tag">{{ tag.name }}</span>
+          {% endfor %}
+        </div>
+        <span class="text-xs text-muted">{{ note.updated_at|date:"d M" }}</span>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <span class="empty-state__icon">🗒</span>
+    <div class="empty-state__title">{% if search_q %}Sin resultados{% else %}Sin notas todavía{% endif %}</div>
+    <div class="empty-state__desc">{% if search_q %}Prueba otro término de búsqueda.{% else %}Crea tu primera nota de conocimiento.{% endif %}</div>
+    {% if not search_q %}
+    <a href="/notes/new/" class="btn btn--primary" style="margin-top:20px">Crear nota</a>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

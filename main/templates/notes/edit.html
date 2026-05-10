@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}{{ note.title }} — Editar — Writara{% endblock %}
+
+{% block content %}
+<div style="display:flex;flex-direction:column;height:calc(100vh - var(--topbar-h))"
+     x-data="noteEditor()">
+
+  <div style="background:var(--bg-2);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 16px;gap:8px;height:52px;flex-shrink:0" @keydown.ctrl.s.window.prevent="save()">
+    <a href="/notes/{{ note.slug }}/" class="btn btn--ghost btn--icon btn--sm">←</a>
+    <input class="editor-title-input" type="text" id="note-title" value="{{ note.title|escapejs }}" placeholder="Título de la nota…">
+
+    <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;max-width:260px" id="tags-display">
+      {% for tag in note.tags.all %}
+      <span class="tag" style="cursor:pointer" onclick="removeTag('{{ tag.name }}')">{{ tag.name }} ×</span>
+      {% endfor %}
+      <input type="text" id="tag-input" placeholder="+ tag"
+             onkeydown="if(event.key==='Enter'||event.key===','){event.preventDefault();addTagFromInput()}"
+             style="background:none;border:none;color:var(--text-2);font-size:0.78rem;width:60px;padding:2px 4px">
+    </div>
+
+    <span style="font-size:0.73rem;color:var(--text-3);margin-left:auto" id="note-status">Guardado</span>
+    <button class="btn btn--primary btn--sm" onclick="saveNote()">Guardar</button>
+    <a href="/notes/{{ note.slug }}/" class="btn btn--ghost btn--sm">Ver</a>
+  </div>
+
+  <textarea id="note-content" style="flex:1;background:var(--bg);border:none;font-family:var(--font-serif);font-size:{{ prefs.editor_font_size|default:17 }}px;line-height:1.85;color:var(--text);padding:48px 40px;resize:none;max-width:720px;margin:0 auto;display:block;width:100%" placeholder="Escribe aquí… Usa [[nombre de nota]] para enlazar notas.">{{ note.content }}</textarea>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const NOTE_SLUG = '{{ note.slug }}';
+let tags = [{% for tag in note.tags.all %}'{{ tag.name }}',{% endfor %}];
+let saveDebounce;
+
+document.getElementById('note-content').addEventListener('input', () => {
+  document.getElementById('note-status').textContent = 'Sin guardar…';
+  clearTimeout(saveDebounce);
+  saveDebounce = setTimeout(saveNote, 3000);
+});
+
+document.getElementById('note-title').addEventListener('input', () => {
+  document.getElementById('note-status').textContent = 'Sin guardar…';
+});
+
+function addTagFromInput() {
+  const inp = document.getElementById('tag-input');
+  const t = inp.value.trim().replace(',','');
+  if (t && !tags.includes(t)) {
+    tags.push(t);
+    renderTags();
+  }
+  inp.value = '';
+}
+
+function removeTag(name) {
+  tags = tags.filter(t => t !== name);
+  renderTags();
+}
+
+function renderTags() {
+  const cont = document.getElementById('tags-display');
+  // Remove existing tag spans (not the input)
+  cont.querySelectorAll('.tag').forEach(el => el.remove());
+  const inp = document.getElementById('tag-input');
+  tags.forEach(t => {
+    const span = document.createElement('span');
+    span.className = 'tag';
+    span.style.cursor = 'pointer';
+    span.textContent = t + ' ×';
+    span.onclick = () => removeTag(t);
+    cont.insertBefore(span, inp);
+  });
+}
+
+async function saveNote() {
+  const title = document.getElementById('note-title').value || 'Sin título';
+  const content = document.getElementById('note-content').value;
+  document.getElementById('note-status').textContent = 'Guardando…';
+  try {
+    const r = await fetch(`/notes/${NOTE_SLUG}/save/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+      body: JSON.stringify({ title, content, tags })
+    });
+    const data = await r.json();
+    document.getElementById('note-status').textContent = `Guardado ${data.saved_at}`;
+    showToast('Nota guardada');
+  } catch(e) {
+    document.getElementById('note-status').textContent = 'Error al guardar';
+  }
+}
+
+function noteEditor() { return {}; }
+</script>
+{% endblock %}

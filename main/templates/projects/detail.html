@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% block title %}{{ project.name }} — Writara{% endblock %}
+
+{% block content %}
+<div class="page page--wide fade-in" x-data="{tab: 'sections'}">
+
+  <div style="display:flex;align-items:center;gap:16px;margin-bottom:28px">
+    <div style="width:14px;height:14px;border-radius:50%;background:{{ project.cover_color }};flex-shrink:0"></div>
+    <div>
+      <h1 style="font-family:var(--font-serif);font-size:1.8rem;font-weight:500;letter-spacing:-0.02em;margin-bottom:2px">{{ project.name }}</h1>
+      {% if project.description %}<p style="color:var(--text-2);font-size:0.9rem">{{ project.description }}</p>{% endif %}
+    </div>
+    <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+      <span class="badge badge--{{ project.status }}">{{ project.get_status_display }}</span>
+      <span style="font-size:0.8rem;color:var(--text-3)">{{ total_words }} palabras{% if project.word_goal %} / {{ project.word_goal }}{% endif %}</span>
+      <form method="post" action="/projects/{{ project.pk }}/delete/" onsubmit="return confirm('¿Eliminar proyecto?')">
+        {% csrf_token %}
+        <button type="submit" class="btn btn--danger btn--sm">Eliminar</button>
+      </form>
+    </div>
+  </div>
+
+  {% if project.word_goal %}
+  <div class="progress-bar mb-6" style="height:4px">
+    <div class="progress-bar__fill" style="width:{% widthratio total_words project.word_goal 100 %}%"></div>
+  </div>
+  {% endif %}
+
+  <!-- Tabs -->
+  <div style="display:flex;gap:2px;border-bottom:1px solid var(--border);margin-bottom:24px">
+    <button class="btn btn--ghost btn--sm" :style="tab==='sections'?'color:var(--accent);border-bottom:2px solid var(--accent);border-radius:0':'border-radius:0'" @click="tab='sections'">📄 Estructura</button>
+    <button class="btn btn--ghost btn--sm" :style="tab==='biblia'?'color:var(--accent);border-bottom:2px solid var(--accent);border-radius:0':'border-radius:0'" @click="tab='biblia'">👤 Biblia</button>
+    <button class="btn btn--ghost btn--sm" :style="tab==='tasks'?'color:var(--accent);border-bottom:2px solid var(--accent);border-radius:0':'border-radius:0'" @click="tab='tasks'">✓ Tareas</button>
+  </div>
+
+  <!-- Sections -->
+  <div x-show="tab === 'sections'">
+    <div style="display:flex;justify-content:space-between;margin-bottom:16px">
+      <div class="section-title" style="margin:0">{{ sections.count }} secciones</div>
+      <button class="btn btn--primary btn--sm" onclick="addSection()">+ Sección</button>
+    </div>
+    {% if sections %}
+    <div style="display:flex;flex-direction:column;gap:6px">
+      {% for sec in sections %}
+      <div style="display:flex;align-items:center;gap:12px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px">
+        <span style="color:var(--text-3);font-family:var(--font-mono);font-size:0.8rem;min-width:24px">{{ forloop.counter }}</span>
+        <div style="flex:1">
+          <div style="font-weight:500;font-size:0.9rem">{{ sec.title }}</div>
+          <div style="font-size:0.73rem;color:var(--text-3)">{{ sec.word_count }} palabras · {{ sec.updated_at|date:"d M" }}</div>
+        </div>
+        <a href="/projects/{{ project.pk }}/sections/{{ sec.pk }}/" class="btn btn--ghost btn--sm">Editar</a>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state" style="padding:40px">
+      <div class="empty-state__title">Sin secciones todavía</div>
+      <div class="empty-state__desc">Añade capítulos, partes o escenas.</div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Biblia -->
+  <div x-show="tab === 'biblia'" style="display:none">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
+      <div>
+        <div class="section-title">Personajes ({{ characters.count }})</div>
+        {% for char in characters %}
+        <div style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:8px">
+          <div style="font-weight:500">{{ char.name }}</div>
+          <div style="font-size:0.77rem;color:var(--text-3)">{{ char.get_role_display }}</div>
+          {% if char.description %}<div style="font-size:0.83rem;color:var(--text-2);margin-top:5px">{{ char.description|truncatechars:80 }}</div>{% endif %}
+        </div>
+        {% empty %}
+        <div style="font-size:0.83rem;color:var(--text-3);padding:16px;text-align:center;background:var(--bg-2);border-radius:var(--radius);border:1px solid var(--border)">Sin personajes</div>
+        {% endfor %}
+      </div>
+      <div>
+        <div class="section-title">Lugares ({{ places.count }})</div>
+        {% for place in places %}
+        <div style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:8px">
+          <div style="font-weight:500">{{ place.name }}</div>
+          {% if place.description %}<div style="font-size:0.83rem;color:var(--text-2);margin-top:4px">{{ place.description|truncatechars:80 }}</div>{% endif %}
+        </div>
+        {% empty %}
+        <div style="font-size:0.83rem;color:var(--text-3);padding:16px;text-align:center;background:var(--bg-2);border-radius:var(--radius);border:1px solid var(--border)">Sin lugares</div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Tasks Kanban -->
+  <div x-show="tab === 'tasks'" style="display:none">
+    <div class="kanban">
+      <div class="kanban-col">
+        <div class="kanban-col__title">Pendiente</div>
+        {% for task in tasks %}{% if task.status == 'todo' %}
+        <div class="kanban-task" onclick="moveTask({{ task.pk }}, 'doing')">
+          {{ task.title }}
+          {% if task.due_date %}<div style="font-size:0.72rem;color:var(--text-3);margin-top:4px">{{ task.due_date|date:"d M" }}</div>{% endif %}
+        </div>
+        {% endif %}{% endfor %}
+      </div>
+      <div class="kanban-col">
+        <div class="kanban-col__title">En progreso</div>
+        {% for task in tasks %}{% if task.status == 'doing' %}
+        <div class="kanban-task" onclick="moveTask({{ task.pk }}, 'done')">
+          {{ task.title }}
+        </div>
+        {% endif %}{% endfor %}
+      </div>
+      <div class="kanban-col">
+        <div class="kanban-col__title">Hecho</div>
+        {% for task in tasks %}{% if task.status == 'done' %}
+        <div class="kanban-task" style="opacity:0.6" onclick="moveTask({{ task.pk }}, 'todo')">
+          {{ task.title }}
+        </div>
+        {% endif %}{% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const PROJECT_ID = {{ project.pk }};
+function addSection() {
+  const title = prompt('Título de la nueva sección:');
+  if (!title) return;
+  fetch(`/projects/${PROJECT_ID}/sections/new/`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
+    body: JSON.stringify({title})
+  }).then(() => location.reload());
+}
+function moveTask(taskId, status) {
+  fetch(`/projects/${PROJECT_ID}/tasks/${taskId}/move/`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
+    body: JSON.stringify({status})
+  }).then(() => location.reload());
+}
+</script>
+{% endblock %}

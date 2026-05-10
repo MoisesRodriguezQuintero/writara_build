@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Proyectos — Writara{% endblock %}
+
+{% block content %}
+<div class="page fade-in">
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="page-title" style="margin-bottom:0">Proyectos</h1>
+    <a href="/projects/new/" class="btn btn--primary">+ Nuevo</a>
+  </div>
+
+  {% if projects %}
+  <div class="card-grid">
+    {% for p in projects %}
+    <a href="/projects/{{ p.pk }}/" class="card">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <div style="width:12px;height:12px;border-radius:50%;background:{{ p.cover_color }};flex-shrink:0"></div>
+        <div class="card__title" style="margin:0">{{ p.name }}</div>
+      </div>
+      {% if p.description %}
+      <div class="card__preview">{{ p.description|truncatechars:90 }}</div>
+      {% endif %}
+      <div class="card__footer">
+        <span class="badge badge--{{ p.status }}">{{ p.get_status_display }}</span>
+        <div style="display:flex;gap:10px">
+          <span class="text-xs text-muted">{{ p.sections.count }} secciones</span>
+          {% if p.deadline %}<span class="text-xs text-muted">{{ p.deadline|date:"d M Y" }}</span>{% endif %}
+        </div>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <span class="empty-state__icon">📁</span>
+    <div class="empty-state__title">Sin proyectos todavía</div>
+    <div class="empty-state__desc">Organiza tus escritos en proyectos: novelas, ensayos, series.</div>
+    <a href="/projects/new/" class="btn btn--primary" style="margin-top:20px">Crear proyecto</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

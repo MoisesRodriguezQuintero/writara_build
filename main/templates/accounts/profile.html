@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Preferencias — Writara{% endblock %}
+
+{% block content %}
+<div class="page page--centered fade-in">
+  <h1 class="page-title">Preferencias</h1>
+
+  {% if messages %}
+  {% for msg in messages %}
+  <div style="background:rgba(90,171,110,0.12);border:1px solid var(--success);color:var(--success);padding:10px 14px;border-radius:var(--radius);margin-bottom:20px;font-size:0.85rem">{{ msg }}</div>
+  {% endfor %}
+  {% endif %}
+
+  <form method="post" action="/accounts/profile/">
+    {% csrf_token %}
+
+    <div style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;margin-bottom:24px">
+      <div class="section-title" style="margin-bottom:16px">Apariencia</div>
+
+      <div class="form-group">
+        <label class="form-label">Tema</label>
+        <select name="theme" class="form-input form-select" style="width:auto">
+          <option value="dark" {% if prefs.theme == 'dark' %}selected{% endif %}>Oscuro</option>
+          <option value="light" {% if prefs.theme == 'light' %}selected{% endif %}>Claro</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Fuente del editor</label>
+        <select name="editor_font" class="form-input form-select" style="width:auto">
+          <option value="serif" {% if prefs.editor_font == 'serif' %}selected{% endif %}>Serif (Lora)</option>
+          <option value="sans" {% if prefs.editor_font == 'sans' %}selected{% endif %}>Sans (DM Sans)</option>
+          <option value="mono" {% if prefs.editor_font == 'mono' %}selected{% endif %}>Mono (JetBrains)</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Tamaño de fuente: <span id="fs-val">{{ prefs.editor_font_size|default:17 }}px</span></label>
+        <input type="range" name="editor_font_size" min="14" max="22"
+               value="{{ prefs.editor_font_size|default:17 }}"
+               oninput="document.getElementById('fs-val').textContent = this.value + 'px'"
+               style="width:200px">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Ancho del editor</label>
+        <select name="editor_width" class="form-input form-select" style="width:auto">
+          <option value="narrow" {% if prefs.editor_width == 'narrow' %}selected{% endif %}>Estrecho (560px)</option>
+          <option value="medium" {% if prefs.editor_width == 'medium' %}selected{% endif %}>Medio (720px)</option>
+          <option value="wide" {% if prefs.editor_width == 'wide' %}selected{% endif %}>Ancho (940px)</option>
+        </select>
+      </div>
+    </div>
+
+    <div style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;margin-bottom:24px">
+      <div class="section-title" style="margin-bottom:16px">Escritura</div>
+
+      <div class="form-group">
+        <label class="form-label">Intervalo de autoguardado: <span id="as-val">{{ prefs.autosave_interval|default:30 }}s</span></label>
+        <input type="range" name="autosave_interval" min="10" max="120" step="10"
+               value="{{ prefs.autosave_interval|default:30 }}"
+               oninput="document.getElementById('as-val').textContent = this.value + 's'"
+               style="width:200px">
+      </div>
+    </div>
+
+    <div style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;margin-bottom:24px">
+      <div class="section-title" style="margin-bottom:16px">Cuenta</div>
+      <div style="font-size:0.9rem;color:var(--text-2)">
+        <div><strong>Usuario:</strong> {{ user.username }}</div>
+        <div style="margin-top:6px"><strong>Email:</strong> {{ user.email|default:"—" }}</div>
+        <div style="margin-top:6px"><strong>Miembro desde:</strong> {{ user.date_joined|date:"d M Y" }}</div>
+      </div>
+    </div>
+
+    <button type="submit" class="btn btn--primary">Guardar preferencias</button>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Búsqueda{% if q %}: {{ q }}{% endif %} — Writara{% endblock %}
+
+{% block content %}
+<div class="page fade-in">
+  <h1 class="page-title">Búsqueda</h1>
+
+  <form method="get" action="/search/" style="margin-bottom:28px">
+    <div style="display:flex;gap:10px">
+      <input type="text" name="q" value="{{ q }}" class="form-input" placeholder="Buscar en documentos, notas y proyectos…" autofocus style="max-width:480px">
+      <button type="submit" class="btn btn--primary">Buscar</button>
+    </div>
+  </form>
+
+  {% if q %}
+    {% if docs or notes or projects %}
+    <div style="font-size:0.83rem;color:var(--text-3);margin-bottom:20px">
+      {{ docs.count|default:0 }} documentos · {{ notes.count|default:0 }} notas · {{ projects.count|default:0 }} proyectos
+    </div>
+
+    {% if docs %}
+    <div class="mb-6">
+      <div class="section-title">Documentos</div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        {% for doc in docs %}
+        <a href="/editor/{{ doc.pk }}/" style="display:flex;flex-direction:column;gap:4px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;text-decoration:none;transition:border-color 0.15s">
+          <div style="font-weight:500;color:var(--text)">{{ doc.title }}</div>
+          <div style="font-size:0.83rem;color:var(--text-2)">{{ doc.content|striptags|truncatechars:120 }}</div>
+          <div style="font-size:0.75rem;color:var(--text-3)">{{ doc.updated_at|timesince }} ago · {{ doc.word_count }} palabras</div>
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    {% if notes %}
+    <div class="mb-6">
+      <div class="section-title">Notas</div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        {% for note in notes %}
+        <a href="/notes/{{ note.slug }}/" style="display:flex;flex-direction:column;gap:4px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;text-decoration:none;transition:border-color 0.15s">
+          <div style="font-weight:500;color:var(--text)">{{ note.title }}</div>
+          <div style="font-size:0.83rem;color:var(--text-2)">{{ note.content|striptags|truncatechars:120 }}</div>
+          <div style="display:flex;gap:6px;margin-top:4px">
+            {% for tag in note.tags.all %}<span class="tag">{{ tag.name }}</span>{% endfor %}
+            <span style="font-size:0.75rem;color:var(--text-3)">{{ note.updated_at|timesince }} ago</span>
+          </div>
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    {% if projects %}
+    <div class="mb-6">
+      <div class="section-title">Proyectos</div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        {% for p in projects %}
+        <a href="/projects/{{ p.pk }}/" style="display:flex;align-items:center;gap:12px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;text-decoration:none">
+          <div style="width:10px;height:10px;border-radius:50%;background:{{ p.cover_color }};flex-shrink:0"></div>
+          <div style="font-weight:500;color:var(--text)">{{ p.name }}</div>
+          {% if p.description %}<div style="font-size:0.83rem;color:var(--text-2)">{{ p.description|truncatechars:80 }}</div>{% endif %}
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="empty-state">
+      <span class="empty-state__icon">⌕</span>
+      <div class="empty-state__title">Sin resultados para "{{ q }}"</div>
+      <div class="empty-state__desc">Prueba con otras palabras clave.</div>
+    </div>
+    {% endif %}
+  {% else %}
+  <div class="empty-state" style="padding:40px 20px">
+    <span class="empty-state__icon">⌕</span>
+    <div class="empty-state__title">Busca en todo Writara</div>
+    <div class="empty-state__desc">Documentos, notas, proyectos y etiquetas.</div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

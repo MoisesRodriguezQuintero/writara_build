@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}Análisis — {{ doc.title }} — Writara{% endblock %}
+
+{% block content %}
+<div class="page fade-in">
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
+    <a href="/editor/{{ doc.pk }}/" style="color:var(--text-3);font-size:0.85rem">← {{ doc.title }}</a>
+  </div>
+
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="page-title" style="margin-bottom:0">Análisis textual</h1>
+    <button class="btn btn--primary" onclick="runAnalysis()">Actualizar análisis</button>
+  </div>
+
+  {% if result %}
+  <div id="stats-container">
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-card__value">{{ result.word_count }}</div>
+        <div class="stat-card__label">palabras</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card__value">{{ result.sentence_count }}</div>
+        <div class="stat-card__label">frases</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card__value">{{ result.paragraph_count }}</div>
+        <div class="stat-card__label">párrafos</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card__value">{{ result.unique_words }}</div>
+        <div class="stat-card__label">palabras únicas</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card__value">{{ result.estimated_read_min }}</div>
+        <div class="stat-card__label">min lectura</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card__value">{{ result.avg_sentence_length|floatformat:1 }}</div>
+        <div class="stat-card__label">palabras/frase</div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:28px">
+      <!-- Lexical density -->
+      <div style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px">
+        <div class="section-title">Densidad léxica</div>
+        <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:10px">
+          <span style="font-family:var(--font-mono);font-size:2rem;color:var(--text)">{{ result.lexical_density|floatformat:2 }}</span>
+          <span style="color:var(--text-3);font-size:0.83rem">/ 1.00</span>
+        </div>
+        <div class="density-bar">
+          <div class="density-bar__fill" style="width:{{ result.lexical_density|floatformat:0 }}%"></div>
+        </div>
+        <div style="font-size:0.78rem;color:var(--text-3);margin-top:8px">
+          {% if result.lexical_density > 0.6 %}Alta variedad de vocabulario
+          {% elif result.lexical_density > 0.4 %}Variedad media
+          {% else %}Vocabulario repetitivo{% endif %}
+        </div>
+      </div>
+
+      <!-- Style signals -->
+      <div style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px">
+        <div class="section-title">Señales de estilo</div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div style="display:flex;justify-content:space-between;font-size:0.85rem">
+            <span style="color:var(--text-2)">Frases largas (+30 palabras)</span>
+            <span style="font-family:var(--font-mono);color:{% if result.long_sentences > 5 %}var(--danger){% else %}var(--text){% endif %}">{{ result.long_sentences }}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:0.85rem">
+            <span style="color:var(--text-2)">Voz pasiva detectada</span>
+            <span style="font-family:var(--font-mono);color:{% if result.passive_voice_count > 10 %}var(--danger){% else %}var(--text){% endif %}">{{ result.passive_voice_count }}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:0.85rem">
+            <span style="color:var(--text-2)">Longitud media de palabra</span>
+            <span style="font-family:var(--font-mono);color:var(--text)">{{ result.avg_word_length|floatformat:1 }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Top words -->
+    {% if top_words %}
+    <div class="mb-4">
+      <div class="section-title">Palabras más frecuentes (sin stopwords)</div>
+      <div class="word-cloud">
+        {% for word, count in top_words %}
+        <span class="tag" style="font-size:{% widthratio count top_words.0.1 1.2 %}rem;opacity:0.6;font-size:{% if count > 20 %}1rem{% elif count > 10 %}0.9rem{% else %}0.78rem{% endif %}">
+          {{ word }} <span style="color:var(--text-3);font-size:0.7em">({{ count }})</span>
+        </span>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <div style="font-size:0.75rem;color:var(--text-3)">
+      Último análisis: {{ result.created_at|date:"d M Y H:i" }}
+    </div>
+  </div>
+
+  {% else %}
+  <div class="empty-state">
+    <span class="empty-state__icon">📊</span>
+    <div class="empty-state__title">Sin análisis todavía</div>
+    <div class="empty-state__desc">Ejecuta el análisis para ver estadísticas de tu texto.</div>
+    <button class="btn btn--primary" style="margin-top:20px" onclick="runAnalysis()">Analizar documento</button>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+async function runAnalysis() {
+  const btn = event.target;
+  btn.textContent = 'Analizando…'; btn.disabled = true;
+  await fetch('/analysis/{{ doc.pk }}/run/', {
+    method: 'POST', headers: {'X-CSRFToken': getCookie('csrftoken')}
+  });
+  showToast('Análisis completado');
+  setTimeout(() => location.reload(), 800);
+}
+</script>
+{% endblock %}

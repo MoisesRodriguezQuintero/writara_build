@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>{{ doc.title }}</title>
+  <style>
+    body { font-family: Georgia, serif; max-width: 720px; margin: 60px auto; line-height: 1.8; color: #1a1816; font-size: 17px; }
+    h1 { font-size: 2em; margin: 1.2em 0 0.5em; }
+    h2 { font-size: 1.4em; margin: 1.1em 0 0.4em; }
+    h3 { font-size: 1.15em; margin: 1em 0 0.3em; }
+    blockquote { border-left: 3px solid #8b6f4e; padding-left: 1.2em; color: #555; font-style: italic; }
+    code { background: #f3f0ea; padding: 1px 5px; border-radius: 3px; font-family: monospace; font-size: 0.9em; }
+    pre { background: #f3f0ea; padding: 1em; border-radius: 8px; overflow-x: auto; }
+    .doc-title { font-size: 2.2em; font-weight: 600; margin-bottom: 0.2em; }
+    .doc-meta { color: #888; font-size: 0.85em; margin-bottom: 2em; border-bottom: 1px solid #e5e2db; padding-bottom: 1em; }
+  </style>
+</head>
+<body>
+  <h1 class="doc-title">{{ doc.title }}</h1>
+  <div class="doc-meta">
+    {{ doc.updated_at|date:"d \d\e F \d\e Y" }} · {{ doc.word_count }} palabras
+  </div>
+  {{ doc.content|safe }}
+</body>
+</html>

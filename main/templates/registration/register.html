@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Writara — Crear cuenta</title>
+  <link rel="stylesheet" href="/static/css/writara.css">
+</head>
+<body>
+<div class="auth-page">
+  <div class="auth-card">
+    <div class="auth-card__logo">Writara</div>
+    <div class="auth-card__tagline">Crea tu cuenta</div>
+    <form method="post">
+      {% csrf_token %}
+      {% for field in form %}
+      <div class="form-group">
+        <label class="form-label">{{ field.label }}</label>
+        <input type="{{ field.field.widget.input_type }}" name="{{ field.html_name }}" class="form-input"
+               {% if field.value %}value="{{ field.value }}"{% endif %}>
+        {% for err in field.errors %}<span style="font-size:0.78rem;color:var(--danger)">{{ err }}</span>{% endfor %}
+      </div>
+      {% endfor %}
+      <button type="submit" class="btn btn--primary w-full" style="justify-content:center;margin-top:8px">Crear cuenta</button>
+    </form>
+    <p style="text-align:center;margin-top:20px;font-size:0.83rem;color:var(--text-3)">
+      ¿Ya tienes cuenta? <a href="/accounts/login/">Iniciar sesión</a>
+    </p>
+  </div>
+</div>
+</body>
+</html>

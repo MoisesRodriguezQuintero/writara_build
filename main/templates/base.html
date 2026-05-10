@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="{{ prefs.theme|default:'dark' }}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Writara{% endblock %}</title>
+  <link rel="stylesheet" href="/static/css/writara.css">
+  <link rel="stylesheet" href="https://cdn.quilljs.com/1.3.7/quill.snow.css">
+</head>
+<body>
+
+<div class="app-shell" id="app" x-data="appState()">
+
+  <!-- TOPBAR -->
+  <header class="topbar">
+    <a href="/editor/" class="topbar__logo">Writara</a>
+
+    <div class="topbar__search">
+      <span class="topbar__search-icon">⌕</span>
+      <input type="text"
+             placeholder="Buscar… (Ctrl+K)"
+             @focus="paletteOpen = true"
+             @keydown.ctrl.k.window.prevent="paletteOpen = true"
+             readonly>
+    </div>
+
+    <div class="topbar__actions">
+      <button class="btn btn--ghost btn--sm btn--icon" @click="toggleTheme()" title="Cambiar tema">
+        <span x-text="currentTheme === 'dark' ? '☀' : '◑'"></span>
+      </button>
+      {% if user.is_authenticated %}
+        <a href="/accounts/profile/" class="btn btn--ghost btn--sm">{{ user.username }}</a>
+        <form method="post" action="/accounts/logout/" style="display:inline">
+          {% csrf_token %}
+          <button type="submit" class="btn btn--ghost btn--sm">Salir</button>
+        </form>
+      {% endif %}
+    </div>
+  </header>
+
+  <!-- SIDEBAR -->
+  <nav class="sidebar">
+    <div class="sidebar__section">
+      <div class="sidebar__label">Escritura</div>
+      <a href="/editor/" class="sidebar__item {% if active == 'editor' %}sidebar__item--active{% endif %}">
+        <span class="sidebar__item-icon">📄</span>
+        <span class="sidebar__item-text">Documentos</span>
+      </a>
+      <a href="/projects/" class="sidebar__item {% if active == 'projects' %}sidebar__item--active{% endif %}">
+        <span class="sidebar__item-icon">📁</span>
+        <span class="sidebar__item-text">Proyectos</span>
+      </a>
+    </div>
+
+    <div class="sidebar__divider"></div>
+
+    <div class="sidebar__section">
+      <div class="sidebar__label">Conocimiento</div>
+      <a href="/notes/" class="sidebar__item {% if active == 'notes' %}sidebar__item--active{% endif %}">
+        <span class="sidebar__item-icon">🗒</span>
+        <span class="sidebar__item-text">Notas</span>
+      </a>
+      <a href="/notes/graph/" class="sidebar__item">
+        <span class="sidebar__item-icon">◎</span>
+        <span class="sidebar__item-text">Grafo</span>
+      </a>
+    </div>
+
+    <div class="sidebar__divider"></div>
+
+    {% if recent_docs %}
+    <div class="sidebar__section">
+      <div class="sidebar__label">Recientes</div>
+      {% for doc in recent_docs %}
+      <a href="/editor/{{ doc.pk }}/" class="sidebar__item">
+        <span class="sidebar__item-icon">·</span>
+        <span class="sidebar__item-text">{{ doc.title }}</span>
+      </a>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="sidebar__bottom sidebar__section">
+      <a href="/search/" class="sidebar__item {% if active == 'search' %}sidebar__item--active{% endif %}">
+        <span class="sidebar__item-icon">⌕</span>
+        <span class="sidebar__item-text">Búsqueda</span>
+      </a>
+      <a href="/accounts/profile/" class="sidebar__item">
+        <span class="sidebar__item-icon">⚙</span>
+        <span class="sidebar__item-text">Preferencias</span>
+      </a>
+    </div>
+  </nav>
+
+  <!-- MAIN -->
+  <main class="main-content">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- COMMAND PALETTE -->
+  <div class="palette-overlay" x-show="paletteOpen" @click.self="paletteOpen = false" @keydown.escape.window="paletteOpen = false" style="display:none">
+    <div class="palette" @keydown.escape="paletteOpen = false">
+      <input class="palette__input"
+             x-model="paletteQuery"
+             @input="searchPalette()"
+             @keydown.arrow-down.prevent="movePalette(1)"
+             @keydown.arrow-up.prevent="movePalette(-1)"
+             @keydown.enter.prevent="executePalette()"
+             placeholder="Buscar documentos, notas, acciones…"
+             x-ref="paletteInput"
+             x-effect="if(paletteOpen) $nextTick(() => $refs.paletteInput.focus())"
+      >
+      <div class="palette__results">
+        <template x-if="paletteResults.length === 0 && paletteQuery.length > 0">
+          <div class="palette__empty">Sin resultados para "<span x-text="paletteQuery"></span>"</div>
+        </template>
+        <template x-if="paletteResults.length === 0 && paletteQuery.length === 0">
+          <div class="palette__empty" style="padding:20px;text-align:left">
+            <div style="color:var(--text-3);font-size:0.8rem;margin-bottom:8px">ACCIONES RÁPIDAS</div>
+            <div class="palette__item" @click="window.location='/editor/new/'"><span class="palette__item-icon">+</span> Nuevo documento</div>
+            <div class="palette__item" @click="window.location='/notes/new/'"><span class="palette__item-icon">+</span> Nueva nota</div>
+            <div class="palette__item" @click="window.location='/projects/new/'"><span class="palette__item-icon">+</span> Nuevo proyecto</div>
+            <div class="palette__item" @click="window.location='/search/'"><span class="palette__item-icon">⌕</span> Búsqueda global</div>
+          </div>
+        </template>
+        <template x-for="(item, idx) in paletteResults" :key="idx">
+          <div class="palette__item" :class="{'palette__item--selected': paletteIndex === idx}" @click="window.location = item.url" @mouseenter="paletteIndex = idx">
+            <span class="palette__item-icon" x-text="item.icon"></span>
+            <span x-text="item.title"></span>
+            <span style="margin-left:auto;font-size:0.72rem;color:var(--text-3)" x-text="item.type"></span>
+          </div>
+        </template>
+      </div>
+    </div>
+  </div>
+
+  <!-- QUICK CAPTURE -->
+  <div x-data="quickCapture()">
+    <button class="quick-btn" @click="open = !open" title="Captura rápida (Ctrl+Shift+N)">+</button>
+    <div class="quick-modal" x-show="open" style="display:none" @keydown.escape.window="open=false">
+      <div class="editor-panel__title mb-2">Captura rápida</div>
+      <textarea x-model="text" placeholder="Escribe una idea rápida…" @keydown.ctrl.enter="save()"></textarea>
+      <div class="flex gap-2 mt-2">
+        <button class="btn btn--primary btn--sm" @click="save()">Guardar</button>
+        <button class="btn btn--ghost btn--sm" @click="open=false">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  {% if toast_message %}
+  <div class="toast" id="toast">{{ toast_message }}</div>
+  <script>setTimeout(() => document.getElementById('toast')?.remove(), 3000)</script>
+  {% endif %}
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.5/dist/cdn.min.js" defer></script>
+<script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
+
+<script>
+function appState() {
+  return {
+    paletteOpen: false,
+    paletteQuery: '',
+    paletteResults: [],
+    paletteIndex: 0,
+    currentTheme: document.documentElement.dataset.theme || 'dark',
+
+    async searchPalette() {
+      if (this.paletteQuery.length < 1) { this.paletteResults = []; return; }
+      const r = await fetch(`/search/palette/?q=${encodeURIComponent(this.paletteQuery)}`);
+      const data = await r.json();
+      this.paletteResults = data.results;
+      this.paletteIndex = 0;
+    },
+
+    movePalette(dir) {
+      this.paletteIndex = Math.max(0, Math.min(this.paletteResults.length - 1, this.paletteIndex + dir));
+    },
+
+    executePalette() {
+      if (this.paletteResults[this.paletteIndex]) {
+        window.location = this.paletteResults[this.paletteIndex].url;
+      }
+    },
+
+    toggleTheme() {
+      this.currentTheme = this.currentTheme === 'dark' ? 'light' : 'dark';
+      document.documentElement.dataset.theme = this.currentTheme;
+      localStorage.setItem('writara-theme', this.currentTheme);
+      fetch('/accounts/profile/', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': getCookie('csrftoken')},
+        body: `theme=${this.currentTheme}&editor_font={{ prefs.editor_font|default:'serif' }}&editor_font_size={{ prefs.editor_font_size|default:17 }}&editor_width={{ prefs.editor_width|default:'medium' }}&autosave_interval={{ prefs.autosave_interval|default:30 }}`
+      });
+    },
+
+    init() {
+      const saved = localStorage.getItem('writara-theme');
+      if (saved) { this.currentTheme = saved; document.documentElement.dataset.theme = saved; }
+      document.addEventListener('keydown', (e) => {
+        if (e.ctrlKey && e.key === 'k') { e.preventDefault(); this.paletteOpen = true; }
+      });
+    }
+  }
+}
+
+function quickCapture() {
+  return {
+    open: false,
+    text: '',
+    async save() {
+      if (!this.text.trim()) return;
+      await fetch('/notes/quick/', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
+        body: JSON.stringify({content: this.text})
+      });
+      this.text = ''; this.open = false;
+      showToast('Nota guardada en inbox');
+    }
+  }
+}
+
+function getCookie(name) {
+  const v = document.cookie.split('; ').find(r => r.startsWith(name+'='));
+  return v ? v.split('=')[1] : '';
+}
+
+function showToast(msg, duration=2500) {
+  const existing = document.querySelector('.toast');
+  if (existing) existing.remove();
+  const t = document.createElement('div');
+  t.className = 'toast'; t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), duration);
+}
+
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey && e.shiftKey && e.key === 'N') {
+    e.preventDefault();
+    document.querySelector('.quick-btn')?.click();
+  }
+});
+</script>
+
+{% block extra_js %}{% endblock %}
+</body>
+</html>

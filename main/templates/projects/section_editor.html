@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}{{ section.title }} — {{ project.name }} — Writara{% endblock %}
+
+{% block content %}
+<div class="editor-shell editor-width--{{ prefs.editor_width|default:'medium' }}"
+     x-data="sectionEditor({{ project.pk }}, {{ section.pk }}, {{ prefs.autosave_interval|default:30 }})"
+     @keydown.ctrl.s.window.prevent="save()">
+
+  <div class="editor-toolbar">
+    <a href="/projects/{{ project.pk }}/" class="btn btn--ghost btn--icon btn--sm">←</a>
+    <span style="color:var(--text-3);font-size:0.85rem">{{ project.name }}</span>
+    <span style="color:var(--border)">·</span>
+    <input class="editor-title-input" type="text" x-model="title" @input="dirty=true" placeholder="Título de sección…">
+    <span class="editor-status" x-text="statusText"></span>
+    <button class="btn btn--ghost btn--sm" @click="toggleFocus()">
+      <span x-text="focusMode ? '⊠' : '⊡'"></span>
+    </button>
+  </div>
+
+  <div class="editor-body">
+    <div id="section-quill"></div>
+    <div style="background:var(--bg-2);border-top:1px solid var(--border);padding:5px 20px;display:flex;gap:20px;font-size:0.73rem;color:var(--text-3)">
+      <span><span x-text="wordCount"></span> palabras</span>
+      <span><span x-text="readTime"></span> min lectura</span>
+    </div>
+  </div>
+
+  <div class="editor-panel" x-show="!focusMode">
+    <div class="editor-panel__section">
+      <div class="editor-panel__title">Sección</div>
+      <div style="font-size:0.83rem;color:var(--text-2)">{{ project.name }}</div>
+      <div style="font-size:0.78rem;color:var(--text-3);margin-top:4px">Sección {{ section.order|add:1 }}</div>
+    </div>
+    <div class="editor-panel__section">
+      <div class="editor-panel__title">Estadísticas</div>
+      <div class="stat-card" style="padding:10px 12px">
+        <div class="stat-card__value" style="font-size:1.3rem" x-text="wordCount">0</div>
+        <div class="stat-card__label">palabras</div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function sectionEditor(projectId, sectionId, autosaveSec) {
+  return {
+    title: {{ section.title|safe|json_script:"_st"|striptags }},
+    dirty: false, saving: false,
+    statusText: 'Guardado',
+    wordCount: 0, readTime: 0,
+    focusMode: false,
+    quill: null,
+
+    init() {
+      this.quill = new Quill('#section-quill', {
+        theme: 'snow',
+        placeholder: 'Escribe esta sección…',
+        modules: { toolbar: [[{header:[1,2,3,false]}],['bold','italic','underline'],['blockquote','code-block'],[{list:'ordered'},{list:'bullet'}],['link'],['clean']] }
+      });
+      const raw = document.getElementById('raw-content')?.textContent || '';
+      if (raw.trim()) {
+        try { this.quill.setContents(this.quill.clipboard.convert(raw)); } catch(e) {}
+      }
+      this.updateStats();
+      this.quill.on('text-change', () => {
+        this.dirty = true; this.updateStats(); this.statusText = 'Sin guardar…';
+        clearTimeout(this._debounce);
+        this._debounce = setTimeout(() => { if (this.dirty) this.save(); }, 3000);
+      });
+      setInterval(() => { if (this.dirty) this.save(); }, autosaveSec * 1000);
+    },
+
+    updateStats() {
+      const text = this.quill.getText().trim();
+      const words = text ? text.split(/\s+/).filter(w=>w) : [];
+      this.wordCount = words.length;
+      this.readTime = Math.max(1, Math.round(this.wordCount / 200));
+    },
+
+    async save() {
+      this.statusText = 'Guardando…';
+      const content = this.quill.root.innerHTML;
+      const r = await fetch(`/projects/${projectId}/sections/${sectionId}/save/`, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json','X-CSRFToken': getCookie('csrftoken')},
+        body: JSON.stringify({title: this.title, content})
+      });
+      const data = await r.json();
+      this.dirty = false;
+      this.statusText = `Guardado ${data.saved_at}`;
+    },
+
+    toggleFocus() { this.focusMode = !this.focusMode; }
+  }
+}
+</script>
+<div id="raw-content" style="display:none">{{ section.content }}</div>
+{% endblock %}

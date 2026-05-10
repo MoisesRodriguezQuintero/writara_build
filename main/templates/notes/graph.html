@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}Grafo de conocimiento — Writara{% endblock %}
+
+{% block content %}
+<div class="page page--wide fade-in">
+  <div class="flex items-center justify-between mb-4">
+    <h1 class="page-title" style="margin-bottom:0">Grafo de conocimiento</h1>
+    <div style="font-size:0.83rem;color:var(--text-3)">
+      Haz click en un nodo para abrir la nota · Arrastra para reorganizar
+    </div>
+  </div>
+
+  {% if nodes_json == '[]' %}
+  <div class="empty-state">
+    <span class="empty-state__icon">◎</span>
+    <div class="empty-state__title">Sin notas conectadas</div>
+    <div class="empty-state__desc">Crea notas y usa <code style="background:var(--bg-3);padding:1px 6px;border-radius:3px">[[nombre]]</code> para crear conexiones.</div>
+    <a href="/notes/new/" class="btn btn--primary" style="margin-top:20px">Crear nota</a>
+  </div>
+  {% else %}
+  <div class="graph-container" id="graph"></div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script>
+const NODES = {{ nodes_json|safe }};
+const EDGES = {{ edges_json|safe }};
+
+if (NODES.length > 0) {
+  const container = document.getElementById('graph');
+  const W = container.clientWidth, H = container.clientHeight;
+  const isDark = document.documentElement.dataset.theme !== 'light';
+
+  const color = isDark ? '#c4a882' : '#7a5c38';
+  const colorBg = isDark ? '#1a1918' : '#f3f0ea';
+  const colorText = isDark ? '#a09a90' : '#5a5650';
+  const colorLine = isDark ? '#403e3a' : '#c4bfb2';
+
+  const svg = d3.select('#graph').append('svg')
+    .attr('width', W).attr('height', H);
+
+  const g = svg.append('g');
+
+  svg.call(d3.zoom().scaleExtent([0.3, 4]).on('zoom', e => g.attr('transform', e.transform)));
+
+  const sim = d3.forceSimulation(NODES)
+    .force('link', d3.forceLink(EDGES).id(d => d.id).distance(100))
+    .force('charge', d3.forceManyBody().strength(-200))
+    .force('center', d3.forceCenter(W / 2, H / 2))
+    .force('collision', d3.forceCollide(30));
+
+  const link = g.append('g').selectAll('line')
+    .data(EDGES).join('line')
+    .attr('stroke', colorLine).attr('stroke-width', 1.5).attr('stroke-opacity', 0.7);
+
+  const node = g.append('g').selectAll('g')
+    .data(NODES).join('g')
+    .attr('class', 'graph-node')
+    .call(d3.drag()
+      .on('start', (e, d) => { if (!e.active) sim.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+      .on('drag', (e, d) => { d.fx = e.x; d.fy = e.y; })
+      .on('end', (e, d) => { if (!e.active) sim.alphaTarget(0); d.fx = null; d.fy = null; })
+    )
+    .on('click', (e, d) => { window.location = `/notes/${d.slug}/`; });
+
+  node.append('circle')
+    .attr('r', 7)
+    .attr('fill', color)
+    .attr('opacity', 0.85)
+    .attr('stroke', colorBg)
+    .attr('stroke-width', 2);
+
+  node.append('text')
+    .text(d => d.label.length > 20 ? d.label.slice(0, 20) + '…' : d.label)
+    .attr('dy', 18).attr('text-anchor', 'middle')
+    .attr('fill', colorText).attr('font-size', 10);
+
+  node.append('title').text(d => d.label);
+
+  sim.on('tick', () => {
+    link.attr('x1', d => d.source.x).attr('y1', d => d.source.y)
+        .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
+    node.attr('transform', d => `translate(${d.x},${d.y})`);
+  });
+}
+</script>
+{% endblock %}
