@@ -2,20 +2,21 @@
 {% block title %}{{ project.name }} — Writara{% endblock %}
 
 {% block content %}
-<div class="page page--wide fade-in" x-data="{tab: 'sections'}">
+<div class="page page--wide fade-in">
 
-  <div style="display:flex;align-items:center;gap:16px;margin-bottom:28px">
-    <div style="width:14px;height:14px;border-radius:50%;background:{{ project.cover_color }};flex-shrink:0"></div>
-    <div>
-      <h1 style="font-family:var(--font-serif);font-size:1.8rem;font-weight:500;letter-spacing:-0.02em;margin-bottom:2px">{{ project.name }}</h1>
+  <!-- Header -->
+  <div style="display:flex;align-items:flex-start;gap:16px;margin-bottom:24px">
+    <div style="width:14px;height:14px;border-radius:50%;background:{{ project.cover_color }};flex-shrink:0;margin-top:6px"></div>
+    <div style="flex:1;min-width:0">
+      <h1 style="font-family:var(--font-serif);font-size:1.8rem;font-weight:500;letter-spacing:-0.02em;margin-bottom:4px">{{ project.name }}</h1>
       {% if project.description %}<p style="color:var(--text-2);font-size:0.9rem">{{ project.description }}</p>{% endif %}
     </div>
-    <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+    <div style="display:flex;gap:8px;align-items:center;flex-shrink:0">
       <span class="badge badge--{{ project.status }}">{{ project.get_status_display }}</span>
       <span style="font-size:0.8rem;color:var(--text-3)">{{ total_words }} palabras{% if project.word_goal %} / {{ project.word_goal }}{% endif %}</span>
-      <form method="post" action="/projects/{{ project.pk }}/delete/" onsubmit="return confirm('¿Eliminar proyecto?')">
+      <form method="post" action="/projects/{{ project.pk }}/delete/" onsubmit="return confirm('¿Eliminar el proyecto «{{ project.name }}»? Esta acción no se puede deshacer.')">
         {% csrf_token %}
-        <button type="submit" class="btn btn--danger btn--sm">Eliminar</button>
+        <button type="submit" class="btn btn--danger btn--sm">Eliminar proyecto</button>
       </form>
     </div>
   </div>
@@ -27,96 +28,216 @@
   {% endif %}
 
   <!-- Tabs -->
-  <div style="display:flex;gap:2px;border-bottom:1px solid var(--border);margin-bottom:24px">
-    <button class="btn btn--ghost btn--sm" :style="tab==='sections'?'color:var(--accent);border-bottom:2px solid var(--accent);border-radius:0':'border-radius:0'" @click="tab='sections'">📄 Estructura</button>
-    <button class="btn btn--ghost btn--sm" :style="tab==='biblia'?'color:var(--accent);border-bottom:2px solid var(--accent);border-radius:0':'border-radius:0'" @click="tab='biblia'">👤 Biblia</button>
-    <button class="btn btn--ghost btn--sm" :style="tab==='tasks'?'color:var(--accent);border-bottom:2px solid var(--accent);border-radius:0':'border-radius:0'" @click="tab='tasks'">✓ Tareas</button>
+  <div id="tabs" style="display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:28px">
+    <button class="tab-btn" data-tab="sections" onclick="switchTab('sections')"
+            style="padding:10px 20px;background:none;border:none;border-bottom:2px solid var(--accent);color:var(--accent);font-size:0.875rem;font-weight:500;cursor:pointer;font-family:inherit">
+      📄 Estructura
+    </button>
+    <button class="tab-btn" data-tab="biblia" onclick="switchTab('biblia')"
+            style="padding:10px 20px;background:none;border:none;border-bottom:2px solid transparent;color:var(--text-2);font-size:0.875rem;font-weight:500;cursor:pointer;font-family:inherit">
+      👤 Biblia
+    </button>
+    <button class="tab-btn" data-tab="tasks" onclick="switchTab('tasks')"
+            style="padding:10px 20px;background:none;border:none;border-bottom:2px solid transparent;color:var(--text-2);font-size:0.875rem;font-weight:500;cursor:pointer;font-family:inherit">
+      ✓ Tareas
+    </button>
   </div>
 
-  <!-- Sections -->
-  <div x-show="tab === 'sections'">
-    <div style="display:flex;justify-content:space-between;margin-bottom:16px">
-      <div class="section-title" style="margin:0">{{ sections.count }} secciones</div>
-      <button class="btn btn--primary btn--sm" onclick="addSection()">+ Sección</button>
+  <!-- ─── TAB: ESTRUCTURA ─────────────────────── -->
+  <div id="tab-sections" class="tab-content">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div class="section-title" style="margin:0">{{ sections.count }} sección{{ sections.count|pluralize:"es" }} · {{ total_words }} palabras</div>
+      <button class="btn btn--primary btn--sm" onclick="addSection()">+ Nueva sección</button>
     </div>
-    {% if sections %}
-    <div style="display:flex;flex-direction:column;gap:6px">
+
+    <div id="sections-list" style="display:flex;flex-direction:column;gap:6px">
       {% for sec in sections %}
-      <div style="display:flex;align-items:center;gap:12px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px">
-        <span style="color:var(--text-3);font-family:var(--font-mono);font-size:0.8rem;min-width:24px">{{ forloop.counter }}</span>
-        <div style="flex:1">
-          <div style="font-weight:500;font-size:0.9rem">{{ sec.title }}</div>
-          <div style="font-size:0.73rem;color:var(--text-3)">{{ sec.word_count }} palabras · {{ sec.updated_at|date:"d M" }}</div>
+      <div style="display:flex;align-items:center;gap:12px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;transition:border-color 0.15s" onmouseover="this.style.borderColor='var(--border-2)'" onmouseout="this.style.borderColor='var(--border)'">
+        <span style="color:var(--text-3);font-family:var(--font-mono);font-size:0.78rem;min-width:22px;text-align:right">{{ forloop.counter }}</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:500;font-size:0.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ sec.title }}</div>
+          <div style="font-size:0.73rem;color:var(--text-3);margin-top:1px">{{ sec.word_count }} palabras · editado {{ sec.updated_at|date:"d M" }}</div>
         </div>
-        <a href="/projects/{{ project.pk }}/sections/{{ sec.pk }}/" class="btn btn--ghost btn--sm">Editar</a>
+        <a href="/projects/{{ project.pk }}/sections/{{ sec.pk }}/" class="btn btn--ghost btn--sm">Editar →</a>
+      </div>
+      {% empty %}
+      <div class="empty-state" style="padding:40px">
+        <span class="empty-state__icon" style="font-size:1.8rem">📄</span>
+        <div class="empty-state__title">Sin secciones todavía</div>
+        <div class="empty-state__desc">Añade capítulos, partes o escenas con el botón de arriba.</div>
       </div>
       {% endfor %}
     </div>
-    {% else %}
-    <div class="empty-state" style="padding:40px">
-      <div class="empty-state__title">Sin secciones todavía</div>
-      <div class="empty-state__desc">Añade capítulos, partes o escenas.</div>
-    </div>
-    {% endif %}
   </div>
 
-  <!-- Biblia -->
-  <div x-show="tab === 'biblia'" style="display:none">
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
+  <!-- ─── TAB: BIBLIA ─────────────────────────── -->
+  <div id="tab-biblia" class="tab-content" style="display:none">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:28px">
+
+      <!-- Characters -->
       <div>
-        <div class="section-title">Personajes ({{ characters.count }})</div>
-        {% for char in characters %}
-        <div style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:8px">
-          <div style="font-weight:500">{{ char.name }}</div>
-          <div style="font-size:0.77rem;color:var(--text-3)">{{ char.get_role_display }}</div>
-          {% if char.description %}<div style="font-size:0.83rem;color:var(--text-2);margin-top:5px">{{ char.description|truncatechars:80 }}</div>{% endif %}
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+          <div class="section-title" style="margin:0">Personajes ({{ characters.count }})</div>
+          <button class="btn btn--primary btn--sm" onclick="openCharModal()">+ Añadir personaje</button>
         </div>
-        {% empty %}
-        <div style="font-size:0.83rem;color:var(--text-3);padding:16px;text-align:center;background:var(--bg-2);border-radius:var(--radius);border:1px solid var(--border)">Sin personajes</div>
-        {% endfor %}
+
+        <div id="characters-list" style="display:flex;flex-direction:column;gap:8px">
+          {% for char in characters %}
+          <div class="biblia-card" id="char-{{ char.pk }}" style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);padding:14px">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:4px">
+              <div>
+                <span style="font-weight:500">{{ char.name }}</span>
+                <span class="tag" style="margin-left:6px;font-size:0.68rem">{{ char.get_role_display }}</span>
+              </div>
+              <button onclick="deleteCharacter({{ char.pk }})" style="background:none;border:none;color:var(--text-3);cursor:pointer;font-size:0.75rem;padding:2px 4px;flex-shrink:0" title="Eliminar">✕</button>
+            </div>
+            {% if char.description %}<div style="font-size:0.83rem;color:var(--text-2);line-height:1.5">{{ char.description }}</div>{% endif %}
+          </div>
+          {% empty %}
+          <div id="chars-empty" style="font-size:0.85rem;color:var(--text-3);padding:20px;text-align:center;background:var(--bg-2);border-radius:var(--radius);border:1px solid var(--border)">
+            Sin personajes. Añade al protagonista, antagonistas y secundarios.
+          </div>
+          {% endfor %}
+        </div>
       </div>
+
+      <!-- Places -->
       <div>
-        <div class="section-title">Lugares ({{ places.count }})</div>
-        {% for place in places %}
-        <div style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:8px">
-          <div style="font-weight:500">{{ place.name }}</div>
-          {% if place.description %}<div style="font-size:0.83rem;color:var(--text-2);margin-top:4px">{{ place.description|truncatechars:80 }}</div>{% endif %}
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+          <div class="section-title" style="margin:0">Lugares ({{ places.count }})</div>
+          <button class="btn btn--primary btn--sm" onclick="openPlaceModal()">+ Añadir lugar</button>
         </div>
-        {% empty %}
-        <div style="font-size:0.83rem;color:var(--text-3);padding:16px;text-align:center;background:var(--bg-2);border-radius:var(--radius);border:1px solid var(--border)">Sin lugares</div>
-        {% endfor %}
+
+        <div id="places-list" style="display:flex;flex-direction:column;gap:8px">
+          {% for place in places %}
+          <div class="biblia-card" id="place-{{ place.pk }}" style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);padding:14px">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:4px">
+              <span style="font-weight:500">{{ place.name }}</span>
+              <button onclick="deletePlace({{ place.pk }})" style="background:none;border:none;color:var(--text-3);cursor:pointer;font-size:0.75rem;padding:2px 4px;flex-shrink:0" title="Eliminar">✕</button>
+            </div>
+            {% if place.description %}<div style="font-size:0.83rem;color:var(--text-2);line-height:1.5">{{ place.description }}</div>{% endif %}
+          </div>
+          {% empty %}
+          <div id="places-empty" style="font-size:0.85rem;color:var(--text-3);padding:20px;text-align:center;background:var(--bg-2);border-radius:var(--radius);border:1px solid var(--border)">
+            Sin lugares. Añade escenarios, ciudades o espacios clave.
+          </div>
+          {% endfor %}
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- Tasks Kanban -->
-  <div x-show="tab === 'tasks'" style="display:none">
-    <div class="kanban">
-      <div class="kanban-col">
-        <div class="kanban-col__title">Pendiente</div>
-        {% for task in tasks %}{% if task.status == 'todo' %}
-        <div class="kanban-task" onclick="moveTask({{ task.pk }}, 'doing')">
-          {{ task.title }}
-          {% if task.due_date %}<div style="font-size:0.72rem;color:var(--text-3);margin-top:4px">{{ task.due_date|date:"d M" }}</div>{% endif %}
+  <!-- ─── TAB: TAREAS ─────────────────────────── -->
+  <div id="tab-tasks" class="tab-content" style="display:none">
+    <!-- Add task form -->
+    <div style="display:flex;gap:8px;margin-bottom:20px">
+      <input type="text" id="new-task-input" class="form-input" placeholder="Nueva tarea…" style="max-width:360px"
+             onkeydown="if(event.key==='Enter') addTask()">
+      <select id="new-task-status" class="form-input form-select" style="width:auto">
+        <option value="todo">Pendiente</option>
+        <option value="doing">En progreso</option>
+        <option value="done">Hecho</option>
+      </select>
+      <button class="btn btn--primary" onclick="addTask()">Añadir</button>
+    </div>
+
+    <div class="kanban" id="kanban-board">
+      <div class="kanban-col" id="col-todo">
+        <div class="kanban-col__title">⬜ Pendiente</div>
+        <div class="kanban-tasks" data-status="todo">
+          {% for task in tasks %}{% if task.status == 'todo' %}
+          <div class="kanban-task" id="task-{{ task.pk }}">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px">
+              <span>{{ task.title }}</span>
+              <div style="display:flex;gap:4px;flex-shrink:0">
+                <button onclick="moveTask({{ task.pk }}, 'doing')" style="background:none;border:none;color:var(--text-3);cursor:pointer;font-size:0.72rem;padding:0 2px" title="→ En progreso">▶</button>
+                <button onclick="deleteTask({{ task.pk }})" style="background:none;border:none;color:var(--text-3);cursor:pointer;font-size:0.72rem;padding:0 2px" title="Eliminar">✕</button>
+              </div>
+            </div>
+          </div>
+          {% endif %}{% endfor %}
         </div>
-        {% endif %}{% endfor %}
       </div>
-      <div class="kanban-col">
-        <div class="kanban-col__title">En progreso</div>
-        {% for task in tasks %}{% if task.status == 'doing' %}
-        <div class="kanban-task" onclick="moveTask({{ task.pk }}, 'done')">
-          {{ task.title }}
+      <div class="kanban-col" id="col-doing">
+        <div class="kanban-col__title">🔵 En progreso</div>
+        <div class="kanban-tasks" data-status="doing">
+          {% for task in tasks %}{% if task.status == 'doing' %}
+          <div class="kanban-task" id="task-{{ task.pk }}">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px">
+              <span>{{ task.title }}</span>
+              <div style="display:flex;gap:4px;flex-shrink:0">
+                <button onclick="moveTask({{ task.pk }}, 'done')" style="background:none;border:none;color:var(--text-3);cursor:pointer;font-size:0.72rem;padding:0 2px" title="→ Hecho">✓</button>
+                <button onclick="moveTask({{ task.pk }}, 'todo')" style="background:none;border:none;color:var(--text-3);cursor:pointer;font-size:0.72rem;padding:0 2px" title="← Pendiente">◀</button>
+                <button onclick="deleteTask({{ task.pk }})" style="background:none;border:none;color:var(--text-3);cursor:pointer;font-size:0.72rem;padding:0 2px" title="Eliminar">✕</button>
+              </div>
+            </div>
+          </div>
+          {% endif %}{% endfor %}
         </div>
-        {% endif %}{% endfor %}
       </div>
-      <div class="kanban-col">
-        <div class="kanban-col__title">Hecho</div>
-        {% for task in tasks %}{% if task.status == 'done' %}
-        <div class="kanban-task" style="opacity:0.6" onclick="moveTask({{ task.pk }}, 'todo')">
-          {{ task.title }}
+      <div class="kanban-col" id="col-done">
+        <div class="kanban-col__title">✅ Hecho</div>
+        <div class="kanban-tasks" data-status="done">
+          {% for task in tasks %}{% if task.status == 'done' %}
+          <div class="kanban-task" id="task-{{ task.pk }}" style="opacity:0.6">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px">
+              <span style="text-decoration:line-through">{{ task.title }}</span>
+              <div style="display:flex;gap:4px;flex-shrink:0">
+                <button onclick="moveTask({{ task.pk }}, 'todo')" style="background:none;border:none;color:var(--text-3);cursor:pointer;font-size:0.72rem;padding:0 2px" title="← Reabrir">↺</button>
+                <button onclick="deleteTask({{ task.pk }})" style="background:none;border:none;color:var(--text-3);cursor:pointer;font-size:0.72rem;padding:0 2px" title="Eliminar">✕</button>
+              </div>
+            </div>
+          </div>
+          {% endif %}{% endfor %}
         </div>
-        {% endif %}{% endfor %}
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Nuevo personaje -->
+<div id="char-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:500;align-items:center;justify-content:center">
+  <div style="background:var(--bg-2);border:1px solid var(--border-2);border-radius:var(--radius-lg);padding:28px;width:440px;max-width:90vw;box-shadow:var(--shadow-lg)">
+    <div style="font-family:var(--font-serif);font-size:1.1rem;margin-bottom:20px">Nuevo personaje</div>
+    <div class="form-group">
+      <label class="form-label">Nombre</label>
+      <input type="text" id="char-name" class="form-input" placeholder="Elena Vásquez">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Rol</label>
+      <select id="char-role" class="form-input form-select">
+        <option value="protagonist">Protagonista</option>
+        <option value="antagonist">Antagonista</option>
+        <option value="secondary" selected>Secundario</option>
+        <option value="other">Otro</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Descripción (opcional)</label>
+      <textarea id="char-desc" class="form-input" rows="3" placeholder="Rasgos físicos, personalidad, historia…"></textarea>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:4px">
+      <button class="btn btn--primary" onclick="saveCharacter()">Añadir personaje</button>
+      <button class="btn btn--ghost" onclick="closeCharModal()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Nuevo lugar -->
+<div id="place-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:500;align-items:center;justify-content:center">
+  <div style="background:var(--bg-2);border:1px solid var(--border-2);border-radius:var(--radius-lg);padding:28px;width:440px;max-width:90vw;box-shadow:var(--shadow-lg)">
+    <div style="font-family:var(--font-serif);font-size:1.1rem;margin-bottom:20px">Nuevo lugar</div>
+    <div class="form-group">
+      <label class="form-label">Nombre</label>
+      <input type="text" id="place-name" class="form-input" placeholder="La ciudad de arena">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Descripción (opcional)</label>
+      <textarea id="place-desc" class="form-input" rows="3" placeholder="Cómo es, dónde está, qué importancia tiene…"></textarea>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:4px">
+      <button class="btn btn--primary" onclick="savePlace()">Añadir lugar</button>
+      <button class="btn btn--ghost" onclick="closePlaceModal()">Cancelar</button>
     </div>
   </div>
 </div>
@@ -125,21 +246,213 @@
 {% block extra_js %}
 <script>
 const PROJECT_ID = {{ project.pk }};
+
+// ── Tabs ────────────────────────────────────────
+function switchTab(tab) {
+  document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+  document.getElementById('tab-' + tab).style.display = 'block';
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    const active = btn.dataset.tab === tab;
+    btn.style.borderBottomColor = active ? 'var(--accent)' : 'transparent';
+    btn.style.color = active ? 'var(--accent)' : 'var(--text-2)';
+  });
+}
+
+// ── Sections ────────────────────────────────────
 function addSection() {
   const title = prompt('Título de la nueva sección:');
-  if (!title) return;
+  if (!title || !title.trim()) return;
   fetch(`/projects/${PROJECT_ID}/sections/new/`, {
     method: 'POST',
     headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
-    body: JSON.stringify({title})
-  }).then(() => location.reload());
+    body: JSON.stringify({title: title.trim()})
+  }).then(r => r.json()).then(data => {
+    const list = document.getElementById('sections-list');
+    const empty = list.querySelector('.empty-state');
+    if (empty) empty.remove();
+    const idx = list.children.length + 1;
+    const div = document.createElement('div');
+    div.style.cssText = 'display:flex;align-items:center;gap:12px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;';
+    div.innerHTML = `
+      <span style="color:var(--text-3);font-family:var(--font-mono);font-size:0.78rem;min-width:22px;text-align:right">${idx}</span>
+      <div style="flex:1"><div style="font-weight:500;font-size:0.9rem">${data.title}</div>
+      <div style="font-size:0.73rem;color:var(--text-3)">0 palabras · recién creada</div></div>
+      <a href="/projects/${PROJECT_ID}/sections/${data.id}/" class="btn btn--ghost btn--sm">Editar →</a>`;
+    list.appendChild(div);
+    showToast('Sección añadida');
+  });
 }
-function moveTask(taskId, status) {
-  fetch(`/projects/${PROJECT_ID}/tasks/${taskId}/move/`, {
+
+// ── Characters ──────────────────────────────────
+function openCharModal() {
+  document.getElementById('char-name').value = '';
+  document.getElementById('char-desc').value = '';
+  document.getElementById('char-role').value = 'secondary';
+  document.getElementById('char-modal').style.display = 'flex';
+  setTimeout(() => document.getElementById('char-name').focus(), 50);
+}
+function closeCharModal() { document.getElementById('char-modal').style.display = 'none'; }
+
+function saveCharacter() {
+  const name = document.getElementById('char-name').value.trim();
+  if (!name) { document.getElementById('char-name').focus(); return; }
+  const role = document.getElementById('char-role').value;
+  const desc = document.getElementById('char-desc').value.trim();
+  fetch(`/projects/${PROJECT_ID}/characters/new/`, {
     method: 'POST',
     headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
-    body: JSON.stringify({status})
-  }).then(() => location.reload());
+    body: JSON.stringify({name, role, description: desc})
+  }).then(r => r.json()).then(data => {
+    closeCharModal();
+    const list = document.getElementById('characters-list');
+    const empty = document.getElementById('chars-empty');
+    if (empty) empty.remove();
+    const div = document.createElement('div');
+    div.id = `char-${data.id}`;
+    div.style.cssText = 'background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);padding:14px;';
+    div.innerHTML = `
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:4px">
+        <div><span style="font-weight:500">${data.name}</span>
+        <span class="tag" style="margin-left:6px;font-size:0.68rem">${data.role_display}</span></div>
+        <button onclick="deleteCharacter(${data.id})" style="background:none;border:none;color:var(--text-3);cursor:pointer;font-size:0.75rem;padding:2px 4px" title="Eliminar">✕</button>
+      </div>
+      ${data.description ? `<div style="font-size:0.83rem;color:var(--text-2);line-height:1.5">${data.description}</div>` : ''}`;
+    list.appendChild(div);
+    showToast('Personaje añadido');
+  });
 }
+
+function deleteCharacter(id) {
+  if (!confirm('¿Eliminar este personaje?')) return;
+  fetch(`/projects/${PROJECT_ID}/characters/${id}/delete/`, {
+    method: 'POST', headers: {'X-CSRFToken': getCookie('csrftoken')}
+  }).then(() => {
+    document.getElementById(`char-${id}`)?.remove();
+    showToast('Personaje eliminado');
+  });
+}
+
+// ── Places ──────────────────────────────────────
+function openPlaceModal() {
+  document.getElementById('place-name').value = '';
+  document.getElementById('place-desc').value = '';
+  document.getElementById('place-modal').style.display = 'flex';
+  setTimeout(() => document.getElementById('place-name').focus(), 50);
+}
+function closePlaceModal() { document.getElementById('place-modal').style.display = 'none'; }
+
+function savePlace() {
+  const name = document.getElementById('place-name').value.trim();
+  if (!name) { document.getElementById('place-name').focus(); return; }
+  const desc = document.getElementById('place-desc').value.trim();
+  fetch(`/projects/${PROJECT_ID}/places/new/`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
+    body: JSON.stringify({name, description: desc})
+  }).then(r => r.json()).then(data => {
+    closePlaceModal();
+    const list = document.getElementById('places-list');
+    const empty = document.getElementById('places-empty');
+    if (empty) empty.remove();
+    const div = document.createElement('div');
+    div.id = `place-${data.id}`;
+    div.style.cssText = 'background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);padding:14px;';
+    div.innerHTML = `
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:4px">
+        <span style="font-weight:500">${data.name}</span>
+        <button onclick="deletePlace(${data.id})" style="background:none;border:none;color:var(--text-3);cursor:pointer;font-size:0.75rem;padding:2px 4px" title="Eliminar">✕</button>
+      </div>
+      ${data.description ? `<div style="font-size:0.83rem;color:var(--text-2);line-height:1.5">${data.description}</div>` : ''}`;
+    list.appendChild(div);
+    showToast('Lugar añadido');
+  });
+}
+
+function deletePlace(id) {
+  if (!confirm('¿Eliminar este lugar?')) return;
+  fetch(`/projects/${PROJECT_ID}/places/${id}/delete/`, {
+    method: 'POST', headers: {'X-CSRFToken': getCookie('csrftoken')}
+  }).then(() => {
+    document.getElementById(`place-${id}`)?.remove();
+    showToast('Lugar eliminado');
+  });
+}
+
+// ── Tasks ───────────────────────────────────────
+function addTask() {
+  const input = document.getElementById('new-task-input');
+  const title = input.value.trim();
+  if (!title) { input.focus(); return; }
+  const status = document.getElementById('new-task-status').value;
+  fetch(`/projects/${PROJECT_ID}/tasks/new/`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
+    body: JSON.stringify({title, status})
+  }).then(r => r.json()).then(data => {
+    input.value = '';
+    const col = document.querySelector(`#kanban-board .kanban-tasks[data-status="${data.status}"]`);
+    if (col) {
+      const div = buildTaskCard(data);
+      col.appendChild(div);
+    }
+    showToast('Tarea añadida');
+  });
+}
+
+function buildTaskCard(data) {
+  const div = document.createElement('div');
+  div.id = `task-${data.id}`;
+  div.className = 'kanban-task';
+  if (data.status === 'done') div.style.opacity = '0.6';
+  const titleStyle = data.status === 'done' ? 'text-decoration:line-through' : '';
+  div.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px">
+      <span style="${titleStyle}">${data.title}</span>
+      <div style="display:flex;gap:4px;flex-shrink:0">
+        ${data.status === 'todo' ? `<button onclick="moveTask(${data.id},'doing')" style="background:none;border:none;color:var(--text-3);cursor:pointer;font-size:0.72rem;padding:0 2px" title="→ En progreso">▶</button>` : ''}
+        ${data.status === 'doing' ? `<button onclick="moveTask(${data.id},'done')" style="background:none;border:none;color:var(--text-3);cursor:pointer;font-size:0.72rem;padding:0 2px" title="→ Hecho">✓</button><button onclick="moveTask(${data.id},'todo')" style="background:none;border:none;color:var(--text-3);cursor:pointer;font-size:0.72rem;padding:0 2px">◀</button>` : ''}
+        ${data.status === 'done' ? `<button onclick="moveTask(${data.id},'todo')" style="background:none;border:none;color:var(--text-3);cursor:pointer;font-size:0.72rem;padding:0 2px" title="Reabrir">↺</button>` : ''}
+        <button onclick="deleteTask(${data.id})" style="background:none;border:none;color:var(--text-3);cursor:pointer;font-size:0.72rem;padding:0 2px" title="Eliminar">✕</button>
+      </div>
+    </div>`;
+  return div;
+}
+
+function moveTask(id, newStatus) {
+  fetch(`/projects/${PROJECT_ID}/tasks/${id}/move/`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
+    body: JSON.stringify({status: newStatus})
+  }).then(() => {
+    // Rebuild card in new column
+    const oldCard = document.getElementById(`task-${id}`);
+    const title = oldCard?.querySelector('span')?.textContent || '';
+    oldCard?.remove();
+    const col = document.querySelector(`#kanban-board .kanban-tasks[data-status="${newStatus}"]`);
+    if (col) col.appendChild(buildTaskCard({id, title, status: newStatus}));
+  });
+}
+
+function deleteTask(id) {
+  if (!confirm('¿Eliminar esta tarea?')) return;
+  fetch(`/projects/${PROJECT_ID}/tasks/${id}/delete/`, {
+    method: 'POST', headers: {'X-CSRFToken': getCookie('csrftoken')}
+  }).then(() => {
+    document.getElementById(`task-${id}`)?.remove();
+    showToast('Tarea eliminada');
+  });
+}
+
+// Close modals on outside click
+document.addEventListener('click', e => {
+  ['char-modal', 'place-modal'].forEach(id => {
+    const modal = document.getElementById(id);
+    if (e.target === modal) modal.style.display = 'none';
+  });
+});
+
+// Enter key on modal inputs
+document.getElementById('char-name')?.addEventListener('keydown', e => { if (e.key === 'Enter') saveCharacter(); });
+document.getElementById('place-name')?.addEventListener('keydown', e => { if (e.key === 'Enter') savePlace(); });
 </script>
 {% endblock %}

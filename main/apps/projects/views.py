@@ -92,3 +92,66 @@ def project_delete(request, pk):
     project = get_object_or_404(Project, pk=pk, owner=request.user)
     project.delete()
     return redirect('projects:list')
+
+@login_required
+@require_POST
+def character_create(request, pk):
+    project = get_object_or_404(Project, pk=pk, owner=request.user)
+    data = json.loads(request.body)
+    c = Character.objects.create(
+        project=project,
+        name=data.get('name', 'Personaje'),
+        role=data.get('role', 'secondary'),
+        description=data.get('description', ''),
+    )
+    return JsonResponse({'id': c.pk, 'name': c.name, 'role': c.role, 'role_display': c.get_role_display(), 'description': c.description})
+
+@login_required
+@require_POST
+def character_delete(request, pk, cid):
+    project = get_object_or_404(Project, pk=pk, owner=request.user)
+    char = get_object_or_404(Character, pk=cid, project=project)
+    char.delete()
+    return JsonResponse({'ok': True})
+
+@login_required
+@require_POST
+def place_create(request, pk):
+    project = get_object_or_404(Project, pk=pk, owner=request.user)
+    data = json.loads(request.body)
+    p = Place.objects.create(
+        project=project,
+        name=data.get('name', 'Lugar'),
+        description=data.get('description', ''),
+    )
+    return JsonResponse({'id': p.pk, 'name': p.name, 'description': p.description})
+
+@login_required
+@require_POST
+def place_delete(request, pk, pid):
+    project = get_object_or_404(Project, pk=pk, owner=request.user)
+    place = get_object_or_404(Place, pk=pid, project=project)
+    place.delete()
+    return JsonResponse({'ok': True})
+
+@login_required
+@require_POST
+def task_create(request, pk):
+    project = get_object_or_404(Project, pk=pk, owner=request.user)
+    data = json.loads(request.body)
+    order = project.tasks.count()
+    t = Task.objects.create(
+        project=project,
+        title=data.get('title', 'Nueva tarea'),
+        status=data.get('status', 'todo'),
+        order=order,
+    )
+    return JsonResponse({'id': t.pk, 'title': t.title, 'status': t.status})
+
+@login_required
+@require_POST
+def task_delete(request, pk, tid):
+    project = get_object_or_404(Project, pk=pk, owner=request.user)
+    task = get_object_or_404(Task, pk=tid, project=project)
+    task.delete()
+    return JsonResponse({'ok': True})

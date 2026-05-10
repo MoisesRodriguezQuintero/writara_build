@@ -3,35 +3,39 @@
 
 {% block content %}
 <div class="editor-shell editor-width--{{ prefs.editor_width|default:'medium' }}"
-     id="editor-shell"
-     x-data="editorApp()"
-     @keydown.ctrl.s.window.prevent="saveNow()"
-     @keydown.ctrl.shift.f.window.prevent="toggleFocus()">
+     id="editor-shell">
 
   <!-- TOOLBAR -->
   <div class="editor-toolbar">
-    <a href="/editor/" class="btn btn--ghost btn--icon btn--sm">←</a>
-    <input class="editor-title-input" type="text" id="doc-title-input"
-           placeholder="Sin título…" onchange="markDirty()">
+    <a href="/editor/" class="btn btn--ghost btn--icon btn--sm" title="Volver">←</a>
+
+    <input class="editor-title-input"
+           type="text"
+           id="doc-title-input"
+           value="{{ doc.title|escapejs }}"
+           placeholder="Sin título…"
+           oninput="markDirty()">
+
     <span class="editor-status" id="save-status">Guardado</span>
 
-    <div style="display:flex;gap:6px;margin-left:8px">
+    <div style="display:flex;gap:6px;margin-left:8px;align-items:center">
       <button class="btn btn--ghost btn--icon btn--sm" id="focus-btn" onclick="toggleFocusMode()" title="Modo enfoque (Ctrl+Shift+F)">⊡</button>
-      <button class="btn btn--ghost btn--icon btn--sm" id="fav-btn" onclick="toggleFav()" title="Favorito">{% if doc.is_favorite %}★{% else %}☆{% endif %}</button>
+      <button class="btn btn--ghost btn--icon btn--sm" id="fav-btn" onclick="toggleFav()" title="Favorito"
+              style="{% if doc.is_favorite %}color:var(--accent){% endif %}">{% if doc.is_favorite %}★{% else %}☆{% endif %}</button>
       <a href="/analysis/{{ doc.pk }}/" class="btn btn--ghost btn--icon btn--sm" title="Análisis">📊</a>
 
-      <div style="position:relative" x-data="{open:false}">
-        <button class="btn btn--ghost btn--sm" @click="open=!open" @click.outside="open=false">Exportar ▾</button>
-        <div x-show="open" style="position:absolute;right:0;top:38px;background:var(--bg-3);border:1px solid var(--border);border-radius:var(--radius);min-width:140px;z-index:50;overflow:hidden;display:none">
-          <a href="/editor/{{ doc.pk }}/export/markdown/" class="sidebar__item" style="padding:8px 14px">Markdown</a>
-          <a href="/editor/{{ doc.pk }}/export/html/" class="sidebar__item" style="padding:8px 14px">HTML</a>
-          <a href="/editor/{{ doc.pk }}/export/txt/" class="sidebar__item" style="padding:8px 14px">Texto plano</a>
+      <!-- Export -->
+      <div style="position:relative" id="export-menu">
+        <button class="btn btn--ghost btn--sm" onclick="toggleExport()">Exportar ▾</button>
+        <div id="export-dropdown" style="display:none;position:absolute;right:0;top:38px;background:var(--bg-3);border:1px solid var(--border);border-radius:var(--radius);min-width:140px;z-index:50;overflow:hidden;box-shadow:var(--shadow)">
+          <a href="/editor/{{ doc.pk }}/export/markdown/" style="display:block;padding:9px 14px;color:var(--text-2);font-size:0.85rem;" onmouseover="this.style.background='var(--bg-4)'" onmouseout="this.style.background=''">Markdown</a>
+          <a href="/editor/{{ doc.pk }}/export/html/" style="display:block;padding:9px 14px;color:var(--text-2);font-size:0.85rem;" onmouseover="this.style.background='var(--bg-4)'" onmouseout="this.style.background=''">HTML</a>
+          <a href="/editor/{{ doc.pk }}/export/txt/" style="display:block;padding:9px 14px;color:var(--text-2);font-size:0.85rem;" onmouseover="this.style.background='var(--bg-4)'" onmouseout="this.style.background=''">Texto plano</a>
         </div>
       </div>
 
-      <div style="display:flex;gap:4px;align-items:center" id="delete-area">
-        <button class="btn btn--ghost btn--icon btn--sm" onclick="showDeleteConfirm()">🗑</button>
-      </div>
+      <!-- Delete -->
+      <button class="btn btn--ghost btn--icon btn--sm" onclick="document.getElementById('delete-modal').style.display='flex'" title="Eliminar">🗑</button>
     </div>
   </div>
 
@@ -39,7 +43,7 @@
   <div class="editor-body">
     <div id="editor-quill"></div>
     <div style="background:var(--bg-2);border-top:1px solid var(--border);padding:5px 20px;display:flex;justify-content:space-between;font-size:0.73rem;color:var(--text-3)">
-      <span><span id="wc">{{ doc.word_count }}</span> palabras · <span id="rt">{{ doc.word_count|divisibleby:200|yesno:"1,0" }}</span> min lectura</span>
+      <span><span id="wc">0</span> palabras · <span id="rt">0</span> min lectura</span>
       <span>{{ doc.get_status_display }}</span>
     </div>
   </div>
@@ -69,55 +73,81 @@
       <div class="editor-panel__title">Estadísticas</div>
       <div style="display:flex;flex-direction:column;gap:8px">
         <div class="stat-card" style="padding:10px 12px">
-          <div class="stat-card__value" style="font-size:1.2rem" id="wc2">{{ doc.word_count }}</div>
+          <div class="stat-card__value" style="font-size:1.2rem" id="wc2">0</div>
           <div class="stat-card__label">palabras</div>
         </div>
         <div class="stat-card" style="padding:10px 12px">
           <div class="stat-card__value" style="font-size:1.2rem" id="cc">0</div>
           <div class="stat-card__label">caracteres</div>
         </div>
+        <div class="stat-card" style="padding:10px 12px">
+          <div class="stat-card__value" style="font-size:1.2rem" id="rt2">0</div>
+          <div class="stat-card__label">min lectura</div>
+        </div>
       </div>
     </div>
 
     <!-- Pomodoro -->
-    <div class="editor-panel__section" x-data="pomodoro()">
+    <div class="editor-panel__section">
       <div class="editor-panel__title">Pomodoro</div>
-      <div style="text-align:center;padding:10px">
-        <div style="font-family:var(--font-mono);font-size:1.8rem;color:var(--text);margin-bottom:8px" x-text="display"></div>
+      <div style="text-align:center;padding:10px" id="pomodoro-widget">
+        <div style="font-family:var(--font-mono);font-size:1.8rem;color:var(--text);margin-bottom:8px" id="pomo-display">25:00</div>
         <div style="display:flex;gap:6px;justify-content:center">
-          <button class="btn btn--ghost btn--sm" @click="toggle()" x-text="running?'Pausar':'Iniciar'"></button>
-          <button class="btn btn--ghost btn--sm" @click="reset()">↺</button>
+          <button class="btn btn--ghost btn--sm" id="pomo-toggle" onclick="pomodoroToggle()">Iniciar</button>
+          <button class="btn btn--ghost btn--sm" onclick="pomodoroReset()">↺</button>
         </div>
-        <div style="font-size:0.73rem;color:var(--text-3);margin-top:6px" x-text="phase"></div>
+        <div style="font-size:0.73rem;color:var(--text-3);margin-top:6px" id="pomo-phase">Trabajo</div>
       </div>
     </div>
   </div>
 </div>
 
 <!-- Delete confirm modal -->
-<div id="delete-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;align-items:center;justify-content:center">
-  <div style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:28px;max-width:360px">
-    <div style="font-family:var(--font-serif);font-size:1.1rem;margin-bottom:12px">¿Eliminar "{{ doc.title }}"?</div>
-    <div style="font-size:0.85rem;color:var(--text-2);margin-bottom:20px">Esta acción no se puede deshacer.</div>
+<div id="delete-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:500;align-items:center;justify-content:center">
+  <div style="background:var(--bg-2);border:1px solid var(--border-2);border-radius:var(--radius-lg);padding:28px;max-width:360px;width:90%;box-shadow:var(--shadow-lg)">
+    <div style="font-family:var(--font-serif);font-size:1.1rem;margin-bottom:10px">¿Eliminar este documento?</div>
+    <div style="font-size:0.85rem;color:var(--text-2);margin-bottom:22px">«{{ doc.title }}» — Esta acción no se puede deshacer.</div>
     <div style="display:flex;gap:8px">
-      <form method="post" action="/editor/{{ doc.pk }}/delete/">{% csrf_token %}<button type="submit" class="btn btn--danger">Eliminar</button></form>
+      <form method="post" action="/editor/{{ doc.pk }}/delete/">
+        {% csrf_token %}
+        <button type="submit" class="btn btn--danger">Sí, eliminar</button>
+      </form>
       <button class="btn btn--ghost" onclick="document.getElementById('delete-modal').style.display='none'">Cancelar</button>
     </div>
   </div>
 </div>
+
+<!-- Hidden content store — uses |safe so HTML is preserved, read as innerHTML -->
+<div id="raw-doc-content" style="display:none">{{ doc.content|safe }}</div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
 const DOC_ID = {{ doc.pk }};
-const DOC_TITLE = {{ doc.title|default:"''"|safe|escapejs|addslashes }};
-let quill, dirty = false, saveTimer, debounceTimer;
-let focusMode = false;
-let isFav = {{ doc.is_favorite|yesno:"true,false" }};
+let quill, dirty = false, focusMode = false, isFav = {{ doc.is_favorite|yesno:"true,false" }};
+let autosaveInterval = {{ prefs.autosave_interval|default:30 }} * 1000;
+let debounceTimer, saveTimer;
 
-window.addEventListener('load', () => {
-  document.getElementById('doc-title-input').value = "{{ doc.title|escapejs }}";
+// ── Init ────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  initQuill();
+  saveTimer = setInterval(() => { if (dirty) saveDoc(); }, autosaveInterval);
 
+  // Close export on outside click
+  document.addEventListener('click', e => {
+    if (!document.getElementById('export-menu')?.contains(e.target)) {
+      document.getElementById('export-dropdown').style.display = 'none';
+    }
+  });
+
+  // Ctrl+S
+  document.addEventListener('keydown', e => {
+    if (e.ctrlKey && e.key === 's') { e.preventDefault(); saveDoc(); }
+    if (e.ctrlKey && e.shiftKey && e.key === 'F') { e.preventDefault(); toggleFocusMode(); }
+  });
+});
+
+function initQuill() {
   quill = new Quill('#editor-quill', {
     theme: 'snow',
     placeholder: 'Empieza a escribir…',
@@ -127,15 +157,19 @@ window.addEventListener('load', () => {
         ['bold', 'italic', 'underline', 'strike'],
         ['blockquote', 'code-block'],
         [{ list: 'ordered' }, { list: 'bullet' }],
-        ['link'], ['clean']
+        ['link'],
+        ['clean']
       ]
     }
   });
 
-  // Load content
-  const rawEl = document.getElementById('raw-doc-content');
-  if (rawEl && rawEl.textContent.trim()) {
-    quill.clipboard.dangerouslyPasteHTML(rawEl.textContent.trim());
+  // Load saved content — raw-doc-content has real HTML, use innerHTML
+  const rawDiv = document.getElementById('raw-doc-content');
+  const html = rawDiv ? rawDiv.innerHTML.trim() : '';
+  if (html && html !== '') {
+    quill.clipboard.dangerouslyPasteHTML(html);
+    // Move cursor to end
+    quill.setSelection(quill.getLength(), 0);
   }
 
   updateStats();
@@ -146,46 +180,55 @@ window.addEventListener('load', () => {
     updateStats();
     updateTOC();
     clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(save, 3000);
+    debounceTimer = setTimeout(saveDoc, 3000);
   });
+}
 
-  saveTimer = setInterval(() => { if (dirty) save(); }, {{ prefs.autosave_interval|default:30 }} * 1000);
-});
+// ── Stats ────────────────────────────────────────
+function updateStats() {
+  const text = quill.getText().trim();
+  const words = text ? text.split(/\s+/).filter(w => w.length > 0) : [];
+  const wc = words.length;
+  const cc = text.length;
+  const rt = Math.max(1, Math.round(wc / 200));
+  document.getElementById('wc').textContent = wc;
+  document.getElementById('wc2').textContent = wc;
+  document.getElementById('cc').textContent = cc;
+  document.getElementById('rt').textContent = rt;
+  document.getElementById('rt2').textContent = rt;
+}
 
+// ── TOC ────────────────────────────────────────
+function updateTOC() {
+  const toc = document.getElementById('toc');
+  if (!toc) return;
+  const headings = document.querySelectorAll('.ql-editor h1, .ql-editor h2, .ql-editor h3');
+  toc.innerHTML = '';
+  if (headings.length === 0) {
+    toc.innerHTML = '<span style="color:var(--text-3);font-size:0.78rem">Sin encabezados</span>';
+    return;
+  }
+  headings.forEach(h => {
+    const level = parseInt(h.tagName[1]);
+    const a = document.createElement('a');
+    const text = h.textContent.trim();
+    a.textContent = text.length > 30 ? text.slice(0, 30) + '…' : text;
+    a.href = '#';
+    a.style.cssText = `padding-left:${(level-1)*10}px;color:var(--text-2);font-size:${0.82-(level-1)*0.02}rem;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px;`;
+    a.onclick = e => { e.preventDefault(); h.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+    toc.appendChild(a);
+  });
+}
+
+// ── Save ────────────────────────────────────────
 function markDirty() {
   dirty = true;
   document.getElementById('save-status').textContent = 'Sin guardar…';
 }
 
-function updateStats() {
-  const text = quill.getText().trim();
-  const words = text ? text.split(/\s+/).filter(w => w) : [];
-  const wc = words.length;
-  const cc = text.length;
-  document.getElementById('wc').textContent = wc;
-  document.getElementById('wc2').textContent = wc;
-  document.getElementById('cc').textContent = cc;
-  document.getElementById('rt').textContent = Math.max(1, Math.round(wc / 200));
-}
-
-function updateTOC() {
-  const toc = document.getElementById('toc');
-  const headings = document.querySelectorAll('.ql-editor h1, .ql-editor h2, .ql-editor h3');
-  toc.innerHTML = '';
-  headings.forEach(h => {
-    const level = parseInt(h.tagName[1]);
-    const a = document.createElement('a');
-    const text = h.textContent;
-    a.textContent = text.length > 28 ? text.slice(0, 28) + '…' : text;
-    a.href = '#';
-    a.style.cssText = `padding-left:${(level-1)*10}px;color:var(--text-2);font-size:${0.82-(level-1)*0.03}rem;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;`;
-    a.onclick = e => { e.preventDefault(); h.scrollIntoView({ behavior: 'smooth' }); };
-    toc.appendChild(a);
-  });
-}
-
-async function save() {
-  const title = document.getElementById('doc-title-input').value || 'Sin título';
+async function saveDoc() {
+  if (!quill) return;
+  const title = document.getElementById('doc-title-input').value.trim() || 'Sin título';
   const content = quill.root.innerHTML;
   document.getElementById('save-status').textContent = 'Guardando…';
   try {
@@ -201,62 +244,79 @@ async function save() {
     document.getElementById('wc2').textContent = data.word_count;
   } catch(e) {
     document.getElementById('save-status').textContent = 'Error al guardar';
+    console.error('Autosave error:', e);
   }
 }
 
-function saveNow() { save(); }
+// ── UI helpers ────────────────────────────────────────
+function toggleExport() {
+  const dd = document.getElementById('export-dropdown');
+  dd.style.display = dd.style.display === 'none' ? 'block' : 'none';
+}
 
 function toggleFocusMode() {
   focusMode = !focusMode;
-  document.getElementById('editor-shell').classList.toggle('editor-shell--focus', focusMode);
-  document.getElementById('side-panel').style.display = focusMode ? 'none' : '';
+  const shell = document.getElementById('editor-shell');
+  const panel = document.getElementById('side-panel');
+  shell.classList.toggle('editor-shell--focus', focusMode);
+  panel.style.display = focusMode ? 'none' : '';
   document.getElementById('focus-btn').textContent = focusMode ? '⊠' : '⊡';
 }
 
 async function toggleFav() {
   const r = await fetch(`/editor/${DOC_ID}/favorite/`, {
-    method: 'POST', headers: { 'X-CSRFToken': getCookie('csrftoken') }
+    method: 'POST',
+    headers: { 'X-CSRFToken': getCookie('csrftoken') }
   });
   const data = await r.json();
   isFav = data.is_favorite;
-  document.getElementById('fav-btn').textContent = isFav ? '★' : '☆';
-  document.getElementById('fav-btn').style.color = isFav ? 'var(--accent)' : '';
+  const btn = document.getElementById('fav-btn');
+  btn.textContent = isFav ? '★' : '☆';
+  btn.style.color = isFav ? 'var(--accent)' : '';
   showToast(isFav ? 'Añadido a favoritos' : 'Eliminado de favoritos');
 }
 
-function showDeleteConfirm() {
-  document.getElementById('delete-modal').style.display = 'flex';
+// ── Pomodoro ────────────────────────────────────────
+let pomoWork = 25*60, pomoRest = 5*60, pomoCurrent = 25*60;
+let pomoRunning = false, pomoPhase = 'Trabajo', pomoInterval = null;
+
+function pomodoroToggle() {
+  const btn = document.getElementById('pomo-toggle');
+  if (pomoRunning) {
+    clearInterval(pomoInterval); pomoRunning = false; btn.textContent = 'Iniciar';
+  } else {
+    pomoRunning = true; btn.textContent = 'Pausar';
+    pomoInterval = setInterval(() => {
+      pomoCurrent--;
+      updatePomoDisplay();
+      if (pomoCurrent <= 0) {
+        if (pomoPhase === 'Trabajo') {
+          pomoPhase = 'Descanso'; pomoCurrent = pomoRest;
+          showToast('⏰ Tiempo de descanso (5 min)');
+        } else {
+          pomoPhase = 'Trabajo'; pomoCurrent = pomoWork;
+          showToast('💪 ¡A escribir! (25 min)');
+        }
+        document.getElementById('pomo-phase').textContent = pomoPhase;
+      }
+    }, 1000);
+  }
 }
 
-document.addEventListener('keydown', e => {
-  if (e.ctrlKey && e.shiftKey && e.key === 'F') { e.preventDefault(); toggleFocusMode(); }
-});
+function pomodoroReset() {
+  clearInterval(pomoInterval); pomoRunning = false;
+  pomoCurrent = pomoWork; pomoPhase = 'Trabajo';
+  document.getElementById('pomo-toggle').textContent = 'Iniciar';
+  document.getElementById('pomo-phase').textContent = 'Trabajo';
+  updatePomoDisplay();
+}
 
-function pomodoro() {
-  return {
-    work: 25*60, rest: 5*60, current: 25*60, running: false,
-    phase: 'Trabajo', interval: null,
-    get display() {
-      return String(Math.floor(this.current/60)).padStart(2,'0')+':'+String(this.current%60).padStart(2,'0');
-    },
-    toggle() {
-      if (this.running) { clearInterval(this.interval); this.running = false; }
-      else {
-        this.running = true;
-        this.interval = setInterval(() => {
-          if (this.current > 0) { this.current--; }
-          else {
-            if (this.phase === 'Trabajo') { this.phase = 'Descanso'; this.current = this.rest; showToast('⏰ Descanso'); }
-            else { this.phase = 'Trabajo'; this.current = this.work; showToast('💪 A trabajar'); }
-          }
-        }, 1000);
-      }
-    },
-    reset() { clearInterval(this.interval); this.running = false; this.current = this.work; this.phase = 'Trabajo'; }
-  }
+function updatePomoDisplay() {
+  const m = String(Math.floor(pomoCurrent/60)).padStart(2,'0');
+  const s = String(pomoCurrent%60).padStart(2,'0');
+  document.getElementById('pomo-display').textContent = `${m}:${s}`;
 }
 
 function editorApp() { return {}; }
 </script>
-<textarea id="raw-doc-content" style="display:none">{{ doc.content }}</textarea>
 {% endblock %}
