@@ -108,6 +108,14 @@ def document_export(request, pk, fmt):
         response = HttpResponse(content, content_type='text/plain')
         response['Content-Disposition'] = f'attachment; filename="{doc.title}.txt"'
         return response
+    elif fmt == 'odt':
+        content = exp.to_odt()
+    response = HttpResponse(
+        content,
+        content_type='application/vnd.oasis.opendocument.text'
+    )
+    response['Content-Disposition'] = f'attachment; filename="{doc.title}.odt"'
+    return response
     return redirect('editor:edit', pk)
 
 @login_required
