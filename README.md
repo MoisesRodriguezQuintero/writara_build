@@ -9,10 +9,14 @@ pip install django html2text bleach odfpy
 python manage.py migrate
 python manage.py createsuperuser
 python manage.py runserver
-Cuenta de demo
+```
+**Cuenta de demo**
+```
 Usuario: demo
 Contraseña: demo1234
+```
 Features implementadas
+```
 ✅ Editor rico con Quill (H1–H3, bold, italic, listas, citas, código)
 ✅ Autoguardado con debounce + intervalo configurable
 ✅ Historial de versiones (snapshot automático)
@@ -35,25 +39,28 @@ Features implementadas
 ✅ Preferencias de usuario (fuente, ancho, autosave)
 ✅ Diseño editorial dark-first
 Exportación soportada
-
-Writara permite exportar documentos en múltiples formatos:
-
+```
+**Writara permite exportar documentos en múltiples formatos:**
+```
 Formato	Descripción
 Markdown	Compatible con Obsidian, GitHub y editores markdown
 HTML	Documento HTML limpio
 TXT	Texto plano sin formato
 ODT	Documento LibreOffice/OpenDocument
-
+```
 La exportación ODT utiliza odfpy y no requiere LibreOffice instalado en el servidor.
 
-Dependencias principales
-Django
-Quill.js
-html2text
-bleach
-odfpy
-D3.js
-Estructura
+**Dependencias principales**
+```
+· Django
+· Quill.js
+· html2text
+· bleach
+· odfpy
+· D3.js
+```
+**Estructura**
+```
 main/
 ├── apps/
 │   ├── accounts/   — usuarios y preferencias
@@ -64,10 +71,13 @@ main/
 │   └── search/     — búsqueda global + command palette
 ├── static/css/     — writara.css (sistema de diseño)
 └── templates/      — plantillas Django
+```
 Roadmap
+```
 Exportación PDF editorial
 Colaboración en tiempo real
 Sincronización offline
 Plantillas de escritura
 IA para asistencia editorial
 App móvil
+```
