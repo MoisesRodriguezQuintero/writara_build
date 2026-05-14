@@ -37,6 +37,10 @@
             style="padding:10px 20px;background:none;border:none;border-bottom:2px solid transparent;color:var(--text-2);font-size:0.875rem;font-weight:500;cursor:pointer;font-family:inherit">
       👤 Biblia
     </button>
+    <button class="tab-btn" data-tab="timeline" onclick="switchTab('timeline')"
+            style="padding:10px 20px;background:none;border:none;border-bottom:2px solid transparent;color:var(--text-2);font-size:0.875rem;font-weight:500;cursor:pointer;font-family:inherit">
+      📅 Línea temporal
+    </button>
     <button class="tab-btn" data-tab="tasks" onclick="switchTab('tasks')"
             style="padding:10px 20px;background:none;border:none;border-bottom:2px solid transparent;color:var(--text-2);font-size:0.875rem;font-weight:500;cursor:pointer;font-family:inherit">
       ✓ Tareas
@@ -80,7 +84,6 @@
           <div class="section-title" style="margin:0">Personajes ({{ characters.count }})</div>
           <button class="btn btn--primary btn--sm" onclick="openCharModal()">+ Añadir personaje</button>
         </div>
-
         <div id="characters-list" style="display:flex;flex-direction:column;gap:8px">
           {% for char in characters %}
           <div class="biblia-card" id="char-{{ char.pk }}" style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);padding:14px">
@@ -107,7 +110,6 @@
           <div class="section-title" style="margin:0">Lugares ({{ places.count }})</div>
           <button class="btn btn--primary btn--sm" onclick="openPlaceModal()">+ Añadir lugar</button>
         </div>
-
         <div id="places-list" style="display:flex;flex-direction:column;gap:8px">
           {% for place in places %}
           <div class="biblia-card" id="place-{{ place.pk }}" style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);padding:14px">
@@ -127,9 +129,24 @@
     </div>
   </div>
 
+  <!-- ─── TAB: LÍNEA TEMPORAL ─────────────────── -->
+  <div id="tab-timeline" class="tab-content" style="display:none">
+    <div style="display:flex;justify-content:flex-end;margin-bottom:20px">
+      <button class="btn btn--primary btn--sm" onclick="openEventModal()">+ Añadir evento</button>
+    </div>
+    <div id="timeline-container" style="position:relative;padding-left:40px">
+      <div style="position:absolute;left:16px;top:0;bottom:0;width:2px;background:var(--border)"></div>
+      <div id="timeline-events"></div>
+      <div id="timeline-empty" style="padding:60px 20px;text-align:center;color:var(--text-3)">
+        <div style="font-size:2rem;margin-bottom:12px;opacity:0.4">📅</div>
+        <div style="font-family:var(--font-serif);font-size:1.05rem;color:var(--text-2);margin-bottom:6px">Sin eventos todavía</div>
+        <div style="font-size:0.85rem">Añade el primer evento para construir la cronología.</div>
+      </div>
+    </div>
+  </div>
+
   <!-- ─── TAB: TAREAS ─────────────────────────── -->
   <div id="tab-tasks" class="tab-content" style="display:none">
-    <!-- Add task form -->
     <div style="display:flex;gap:8px;margin-bottom:20px">
       <input type="text" id="new-task-input" class="form-input" placeholder="Nueva tarea…" style="max-width:360px"
              onkeydown="if(event.key==='Enter') addTask()">
@@ -193,9 +210,10 @@
       </div>
     </div>
   </div>
-</div>
 
-<!-- Modal: Nuevo personaje -->
+</div>{# fin div.page #}
+
+<!-- ── Modal: Nuevo personaje ───────────────────── -->
 <div id="char-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:500;align-items:center;justify-content:center">
   <div style="background:var(--bg-2);border:1px solid var(--border-2);border-radius:var(--radius-lg);padding:28px;width:440px;max-width:90vw;box-shadow:var(--shadow-lg)">
     <div style="font-family:var(--font-serif);font-size:1.1rem;margin-bottom:20px">Nuevo personaje</div>
@@ -223,7 +241,7 @@
   </div>
 </div>
 
-<!-- Modal: Nuevo lugar -->
+<!-- ── Modal: Nuevo lugar ───────────────────────── -->
 <div id="place-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:500;align-items:center;justify-content:center">
   <div style="background:var(--bg-2);border:1px solid var(--border-2);border-radius:var(--radius-lg);padding:28px;width:440px;max-width:90vw;box-shadow:var(--shadow-lg)">
     <div style="font-family:var(--font-serif);font-size:1.1rem;margin-bottom:20px">Nuevo lugar</div>
@@ -241,218 +259,534 @@
     </div>
   </div>
 </div>
-{% endblock %}
+
+<!-- ── Modal: Nuevo / editar evento ─────────────── -->
+<div id="event-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:500;align-items:flex-start;justify-content:center;padding-top:6vh;overflow-y:auto">
+  <div style="background:var(--bg-2);border:1px solid var(--border-2);border-radius:var(--radius-lg);padding:28px;width:520px;max-width:90vw;box-shadow:var(--shadow-lg);margin-bottom:40px">
+    <div style="font-family:var(--font-serif);font-size:1.1rem;margin-bottom:20px" id="event-modal-title">Nuevo evento</div>
+    <input type="hidden" id="event-editing-id" value="">
+    <div class="form-group">
+      <label class="form-label">Título del evento</label>
+      <input type="text" id="event-title" class="form-input" placeholder="La batalla de Arenas Rojas">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Fecha o momento narrativo</label>
+      <input type="text" id="event-date" class="form-input" placeholder="Año 3 del Imperio, Día 12…">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Descripción</label>
+      <textarea id="event-desc" class="form-input" rows="3" placeholder="Qué ocurre en este evento…"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Personajes presentes</label>
+      <div id="event-chars" style="display:flex;flex-wrap:wrap;gap:6px;padding:10px;background:var(--bg-3);border:1px solid var(--border);border-radius:var(--radius);min-height:40px"></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Lugar</label>
+      <div id="event-places" style="display:flex;flex-wrap:wrap;gap:6px;padding:10px;background:var(--bg-3);border:1px solid var(--border);border-radius:var(--radius);min-height:40px"></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:4px">
+      <button class="btn btn--primary" onclick="saveEvent()">Guardar evento</button>
+      <button class="btn btn--ghost" onclick="closeEventModal()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+{% endblock %}{# fin block content #}
 
 {% block extra_js %}
 <script>
-const PROJECT_ID = {{ project.pk }};
+  const PROJECT_ID = {{ project.pk }};
 
-// ── Tabs ────────────────────────────────────────
-function switchTab(tab) {
-  document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
-  document.getElementById('tab-' + tab).style.display = 'block';
-  document.querySelectorAll('.tab-btn').forEach(btn => {
-    const active = btn.dataset.tab === tab;
-    btn.style.borderBottomColor = active ? 'var(--accent)' : 'transparent';
-    btn.style.color = active ? 'var(--accent)' : 'var(--text-2)';
-  });
-}
+  // ── Tabs ─────────────────────────────────────────
+  function switchTab(tab) {
+    document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+    document.getElementById('tab-' + tab).style.display = 'block';
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      const active = btn.dataset.tab === tab;
+      btn.style.borderBottomColor = active ? 'var(--accent)' : 'transparent';
+      btn.style.color = active ? 'var(--accent)' : 'var(--text-2)';
+    });
+  }
 
-// ── Sections ────────────────────────────────────
-function addSection() {
-  const title = prompt('Título de la nueva sección:');
-  if (!title || !title.trim()) return;
-  fetch(`/projects/${PROJECT_ID}/sections/new/`, {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
-    body: JSON.stringify({title: title.trim()})
-  }).then(r => r.json()).then(data => {
-    const list = document.getElementById('sections-list');
-    const empty = list.querySelector('.empty-state');
-    if (empty) empty.remove();
-    const idx = list.children.length + 1;
+  // ── Sections ─────────────────────────────────────
+  function addSection() {
+    const title = prompt('Título de la nueva sección:');
+    if (!title || !title.trim()) return;
+    fetch(`/projects/${PROJECT_ID}/sections/new/`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
+      body: JSON.stringify({title: title.trim()})
+    }).then(r => r.json()).then(data => {
+      const list = document.getElementById('sections-list');
+      const empty = list.querySelector('.empty-state');
+      if (empty) empty.remove();
+      const idx = list.children.length + 1;
+      const div = document.createElement('div');
+      div.style.cssText = 'display:flex;align-items:center;gap:12px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;';
+      div.innerHTML = `
+        <span style="color:var(--text-3);font-family:var(--font-mono);font-size:0.78rem;min-width:22px;text-align:right">${idx}</span>
+        <div style="flex:1"><div style="font-weight:500;font-size:0.9rem">${data.title}</div>
+        <div style="font-size:0.73rem;color:var(--text-3)">0 palabras · recién creada</div></div>
+        <a href="/projects/${PROJECT_ID}/sections/${data.id}/" class="btn btn--ghost btn--sm">Editar →</a>`;
+      list.appendChild(div);
+      showToast('Sección añadida');
+    });
+  }
+
+  // ── Characters ────────────────────────────────────
+  function openCharModal() {
+    document.getElementById('char-name').value = '';
+    document.getElementById('char-desc').value = '';
+    document.getElementById('char-role').value = 'secondary';
+    document.getElementById('char-modal').style.display = 'flex';
+    setTimeout(() => document.getElementById('char-name').focus(), 50);
+  }
+  function closeCharModal() { document.getElementById('char-modal').style.display = 'none'; }
+
+  function saveCharacter() {
+    const name = document.getElementById('char-name').value.trim();
+    if (!name) { document.getElementById('char-name').focus(); return; }
+    const role = document.getElementById('char-role').value;
+    const desc = document.getElementById('char-desc').value.trim();
+    fetch(`/projects/${PROJECT_ID}/characters/new/`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
+      body: JSON.stringify({name, role, description: desc})
+    }).then(r => r.json()).then(data => {
+      closeCharModal();
+      const list = document.getElementById('characters-list');
+      const empty = document.getElementById('chars-empty');
+      if (empty) empty.remove();
+      const div = document.createElement('div');
+      div.id = `char-${data.id}`;
+      div.style.cssText = 'background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);padding:14px;';
+      div.innerHTML = `
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:4px">
+          <div><span style="font-weight:500">${data.name}</span>
+          <span class="tag" style="margin-left:6px;font-size:0.68rem">${data.role_display}</span></div>
+          <button onclick="deleteCharacter(${data.id})" style="background:none;border:none;color:var(--text-3);cursor:pointer;font-size:0.75rem;padding:2px 4px" title="Eliminar">✕</button>
+        </div>
+        ${data.description ? `<div style="font-size:0.83rem;color:var(--text-2);line-height:1.5">${data.description}</div>` : ''}`;
+      list.appendChild(div);
+      // Actualizar lista de personajes disponibles en la timeline
+      if (!ALL_CHARACTERS.find(c => c.id === data.id)) {
+        ALL_CHARACTERS.push({id: data.id, name: data.name, role: data.role_display});
+      }
+      showToast('Personaje añadido');
+    });
+  }
+
+  function deleteCharacter(id) {
+    if (!confirm('¿Eliminar este personaje?')) return;
+    fetch(`/projects/${PROJECT_ID}/characters/${id}/delete/`, {
+      method: 'POST', headers: {'X-CSRFToken': getCookie('csrftoken')}
+    }).then(() => {
+      document.getElementById(`char-${id}`)?.remove();
+      const idx = ALL_CHARACTERS.findIndex(c => c.id === id);
+      if (idx > -1) ALL_CHARACTERS.splice(idx, 1);
+      showToast('Personaje eliminado');
+    });
+  }
+
+  // ── Places ────────────────────────────────────────
+  function openPlaceModal() {
+    document.getElementById('place-name').value = '';
+    document.getElementById('place-desc').value = '';
+    document.getElementById('place-modal').style.display = 'flex';
+    setTimeout(() => document.getElementById('place-name').focus(), 50);
+  }
+  function closePlaceModal() { document.getElementById('place-modal').style.display = 'none'; }
+
+  function savePlace() {
+    const name = document.getElementById('place-name').value.trim();
+    if (!name) { document.getElementById('place-name').focus(); return; }
+    const desc = document.getElementById('place-desc').value.trim();
+    fetch(`/projects/${PROJECT_ID}/places/new/`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
+      body: JSON.stringify({name, description: desc})
+    }).then(r => r.json()).then(data => {
+      closePlaceModal();
+      const list = document.getElementById('places-list');
+      const empty = document.getElementById('places-empty');
+      if (empty) empty.remove();
+      const div = document.createElement('div');
+      div.id = `place-${data.id}`;
+      div.style.cssText = 'background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);padding:14px;';
+      div.innerHTML = `
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:4px">
+          <span style="font-weight:500">${data.name}</span>
+          <button onclick="deletePlace(${data.id})" style="background:none;border:none;color:var(--text-3);cursor:pointer;font-size:0.75rem;padding:2px 4px" title="Eliminar">✕</button>
+        </div>
+        ${data.description ? `<div style="font-size:0.83rem;color:var(--text-2);line-height:1.5">${data.description}</div>` : ''}`;
+      list.appendChild(div);
+      // Actualizar lista de lugares disponibles en la timeline
+      if (!ALL_PLACES.find(p => p.id === data.id)) {
+        ALL_PLACES.push({id: data.id, name: data.name});
+      }
+      showToast('Lugar añadido');
+    });
+  }
+
+  function deletePlace(id) {
+    if (!confirm('¿Eliminar este lugar?')) return;
+    fetch(`/projects/${PROJECT_ID}/places/${id}/delete/`, {
+      method: 'POST', headers: {'X-CSRFToken': getCookie('csrftoken')}
+    }).then(() => {
+      document.getElementById(`place-${id}`)?.remove();
+      const idx = ALL_PLACES.findIndex(p => p.id === id);
+      if (idx > -1) ALL_PLACES.splice(idx, 1);
+      showToast('Lugar eliminado');
+    });
+  }
+
+  // ── Tasks ─────────────────────────────────────────
+  function addTask() {
+    const input = document.getElementById('new-task-input');
+    const title = input.value.trim();
+    if (!title) { input.focus(); return; }
+    const status = document.getElementById('new-task-status').value;
+    fetch(`/projects/${PROJECT_ID}/tasks/new/`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
+      body: JSON.stringify({title, status})
+    }).then(r => r.json()).then(data => {
+      input.value = '';
+      const col = document.querySelector(`#kanban-board .kanban-tasks[data-status="${data.status}"]`);
+      if (col) col.appendChild(buildTaskCard(data));
+      showToast('Tarea añadida');
+    });
+  }
+
+  function buildTaskCard(data) {
     const div = document.createElement('div');
-    div.style.cssText = 'display:flex;align-items:center;gap:12px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;';
+    div.id = `task-${data.id}`;
+    div.className = 'kanban-task';
+    if (data.status === 'done') div.style.opacity = '0.6';
+    const titleStyle = data.status === 'done' ? 'text-decoration:line-through' : '';
     div.innerHTML = `
-      <span style="color:var(--text-3);font-family:var(--font-mono);font-size:0.78rem;min-width:22px;text-align:right">${idx}</span>
-      <div style="flex:1"><div style="font-weight:500;font-size:0.9rem">${data.title}</div>
-      <div style="font-size:0.73rem;color:var(--text-3)">0 palabras · recién creada</div></div>
-      <a href="/projects/${PROJECT_ID}/sections/${data.id}/" class="btn btn--ghost btn--sm">Editar →</a>`;
-    list.appendChild(div);
-    showToast('Sección añadida');
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px">
+        <span style="${titleStyle}">${data.title}</span>
+        <div style="display:flex;gap:4px;flex-shrink:0">
+          ${data.status === 'todo' ? `<button onclick="moveTask(${data.id},'doing')" style="background:none;border:none;color:var(--text-3);cursor:pointer;font-size:0.72rem;padding:0 2px" title="→ En progreso">▶</button>` : ''}
+          ${data.status === 'doing' ? `<button onclick="moveTask(${data.id},'done')" style="background:none;border:none;color:var(--text-3);cursor:pointer;font-size:0.72rem;padding:0 2px" title="→ Hecho">✓</button><button onclick="moveTask(${data.id},'todo')" style="background:none;border:none;color:var(--text-3);cursor:pointer;font-size:0.72rem;padding:0 2px">◀</button>` : ''}
+          ${data.status === 'done' ? `<button onclick="moveTask(${data.id},'todo')" style="background:none;border:none;color:var(--text-3);cursor:pointer;font-size:0.72rem;padding:0 2px" title="Reabrir">↺</button>` : ''}
+          <button onclick="deleteTask(${data.id})" style="background:none;border:none;color:var(--text-3);cursor:pointer;font-size:0.72rem;padding:0 2px" title="Eliminar">✕</button>
+        </div>
+      </div>`;
+    return div;
+  }
+
+  function moveTask(id, newStatus) {
+    fetch(`/projects/${PROJECT_ID}/tasks/${id}/move/`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
+      body: JSON.stringify({status: newStatus})
+    }).then(() => {
+      const oldCard = document.getElementById(`task-${id}`);
+      const title = oldCard?.querySelector('span')?.textContent || '';
+      oldCard?.remove();
+      const col = document.querySelector(`#kanban-board .kanban-tasks[data-status="${newStatus}"]`);
+      if (col) col.appendChild(buildTaskCard({id, title, status: newStatus}));
+    });
+  }
+
+  function deleteTask(id) {
+    if (!confirm('¿Eliminar esta tarea?')) return;
+    fetch(`/projects/${PROJECT_ID}/tasks/${id}/delete/`, {
+      method: 'POST', headers: {'X-CSRFToken': getCookie('csrftoken')}
+    }).then(() => {
+      document.getElementById(`task-${id}`)?.remove();
+      showToast('Tarea eliminada');
+    });
+  }
+
+  // ── Cerrar modales al hacer click fuera ───────────
+  document.addEventListener('click', e => {
+    ['char-modal', 'place-modal', 'event-modal'].forEach(id => {
+      const modal = document.getElementById(id);
+      if (e.target === modal) modal.style.display = 'none';
+    });
   });
-}
 
-// ── Characters ──────────────────────────────────
-function openCharModal() {
-  document.getElementById('char-name').value = '';
-  document.getElementById('char-desc').value = '';
-  document.getElementById('char-role').value = 'secondary';
-  document.getElementById('char-modal').style.display = 'flex';
-  setTimeout(() => document.getElementById('char-name').focus(), 50);
-}
-function closeCharModal() { document.getElementById('char-modal').style.display = 'none'; }
+  document.getElementById('char-name')?.addEventListener('keydown', e => { if (e.key === 'Enter') saveCharacter(); });
+  document.getElementById('place-name')?.addEventListener('keydown', e => { if (e.key === 'Enter') savePlace(); });
+  document.getElementById('event-title')?.addEventListener('keydown', e => { if (e.key === 'Enter') saveEvent(); });
 
-function saveCharacter() {
-  const name = document.getElementById('char-name').value.trim();
-  if (!name) { document.getElementById('char-name').focus(); return; }
-  const role = document.getElementById('char-role').value;
-  const desc = document.getElementById('char-desc').value.trim();
-  fetch(`/projects/${PROJECT_ID}/characters/new/`, {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
-    body: JSON.stringify({name, role, description: desc})
-  }).then(r => r.json()).then(data => {
-    closeCharModal();
-    const list = document.getElementById('characters-list');
-    const empty = document.getElementById('chars-empty');
-    if (empty) empty.remove();
-    const div = document.createElement('div');
-    div.id = `char-${data.id}`;
-    div.style.cssText = 'background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);padding:14px;';
-    div.innerHTML = `
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:4px">
-        <div><span style="font-weight:500">${data.name}</span>
-        <span class="tag" style="margin-left:6px;font-size:0.68rem">${data.role_display}</span></div>
-        <button onclick="deleteCharacter(${data.id})" style="background:none;border:none;color:var(--text-3);cursor:pointer;font-size:0.75rem;padding:2px 4px" title="Eliminar">✕</button>
-      </div>
-      ${data.description ? `<div style="font-size:0.83rem;color:var(--text-2);line-height:1.5">${data.description}</div>` : ''}`;
-    list.appendChild(div);
-    showToast('Personaje añadido');
-  });
-}
+  // ── Timeline ──────────────────────────────────────
+  const ALL_CHARACTERS = [
+    {% for char in characters %}
+    { id: {{ char.pk }}, name: "{{ char.name|escapejs }}", role: "{{ char.get_role_display|escapejs }}" },
+    {% endfor %}
+  ];
 
-function deleteCharacter(id) {
-  if (!confirm('¿Eliminar este personaje?')) return;
-  fetch(`/projects/${PROJECT_ID}/characters/${id}/delete/`, {
-    method: 'POST', headers: {'X-CSRFToken': getCookie('csrftoken')}
-  }).then(() => {
-    document.getElementById(`char-${id}`)?.remove();
-    showToast('Personaje eliminado');
-  });
-}
+  const ALL_PLACES = [
+    {% for place in places %}
+    { id: {{ place.pk }}, name: "{{ place.name|escapejs }}" },
+    {% endfor %}
+  ];
 
-// ── Places ──────────────────────────────────────
-function openPlaceModal() {
-  document.getElementById('place-name').value = '';
-  document.getElementById('place-desc').value = '';
-  document.getElementById('place-modal').style.display = 'flex';
-  setTimeout(() => document.getElementById('place-name').focus(), 50);
-}
-function closePlaceModal() { document.getElementById('place-modal').style.display = 'none'; }
+  let timelineEvents = [
+    {% for ev in events %}
+    {
+      id: {{ ev.pk }},
+      title: "{{ ev.title|escapejs }}",
+      description: "{{ ev.description|escapejs }}",
+      date_label: "{{ ev.date_label|escapejs }}",
+      order: {{ ev.order }},
+      characters: [{% for c in ev.characters.all %}{ id: {{ c.pk }}, name: "{{ c.name|escapejs }}" },{% endfor %}],
+      places: [{% for p in ev.places.all %}{ id: {{ p.pk }}, name: "{{ p.name|escapejs }}" },{% endfor %}],
+    },
+    {% endfor %}
+  ];
 
-function savePlace() {
-  const name = document.getElementById('place-name').value.trim();
-  if (!name) { document.getElementById('place-name').focus(); return; }
-  const desc = document.getElementById('place-desc').value.trim();
-  fetch(`/projects/${PROJECT_ID}/places/new/`, {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
-    body: JSON.stringify({name, description: desc})
-  }).then(r => r.json()).then(data => {
-    closePlaceModal();
-    const list = document.getElementById('places-list');
-    const empty = document.getElementById('places-empty');
-    if (empty) empty.remove();
-    const div = document.createElement('div');
-    div.id = `place-${data.id}`;
-    div.style.cssText = 'background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);padding:14px;';
-    div.innerHTML = `
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:4px">
-        <span style="font-weight:500">${data.name}</span>
-        <button onclick="deletePlace(${data.id})" style="background:none;border:none;color:var(--text-3);cursor:pointer;font-size:0.75rem;padding:2px 4px" title="Eliminar">✕</button>
-      </div>
-      ${data.description ? `<div style="font-size:0.83rem;color:var(--text-2);line-height:1.5">${data.description}</div>` : ''}`;
-    list.appendChild(div);
-    showToast('Lugar añadido');
-  });
-}
+  let selectedCharIds = new Set();
+  let selectedPlaceIds = new Set();
 
-function deletePlace(id) {
-  if (!confirm('¿Eliminar este lugar?')) return;
-  fetch(`/projects/${PROJECT_ID}/places/${id}/delete/`, {
-    method: 'POST', headers: {'X-CSRFToken': getCookie('csrftoken')}
-  }).then(() => {
-    document.getElementById(`place-${id}`)?.remove();
-    showToast('Lugar eliminado');
-  });
-}
+  function renderTimeline() {
+    const container = document.getElementById('timeline-events');
+    const empty = document.getElementById('timeline-empty');
+    container.innerHTML = '';
 
-// ── Tasks ───────────────────────────────────────
-function addTask() {
-  const input = document.getElementById('new-task-input');
-  const title = input.value.trim();
-  if (!title) { input.focus(); return; }
-  const status = document.getElementById('new-task-status').value;
-  fetch(`/projects/${PROJECT_ID}/tasks/new/`, {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
-    body: JSON.stringify({title, status})
-  }).then(r => r.json()).then(data => {
-    input.value = '';
-    const col = document.querySelector(`#kanban-board .kanban-tasks[data-status="${data.status}"]`);
-    if (col) {
-      const div = buildTaskCard(data);
-      col.appendChild(div);
+    if (timelineEvents.length === 0) {
+      empty.style.display = 'block';
+      return;
     }
-    showToast('Tarea añadida');
-  });
-}
+    empty.style.display = 'none';
 
-function buildTaskCard(data) {
-  const div = document.createElement('div');
-  div.id = `task-${data.id}`;
-  div.className = 'kanban-task';
-  if (data.status === 'done') div.style.opacity = '0.6';
-  const titleStyle = data.status === 'done' ? 'text-decoration:line-through' : '';
-  div.innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px">
-      <span style="${titleStyle}">${data.title}</span>
-      <div style="display:flex;gap:4px;flex-shrink:0">
-        ${data.status === 'todo' ? `<button onclick="moveTask(${data.id},'doing')" style="background:none;border:none;color:var(--text-3);cursor:pointer;font-size:0.72rem;padding:0 2px" title="→ En progreso">▶</button>` : ''}
-        ${data.status === 'doing' ? `<button onclick="moveTask(${data.id},'done')" style="background:none;border:none;color:var(--text-3);cursor:pointer;font-size:0.72rem;padding:0 2px" title="→ Hecho">✓</button><button onclick="moveTask(${data.id},'todo')" style="background:none;border:none;color:var(--text-3);cursor:pointer;font-size:0.72rem;padding:0 2px">◀</button>` : ''}
-        ${data.status === 'done' ? `<button onclick="moveTask(${data.id},'todo')" style="background:none;border:none;color:var(--text-3);cursor:pointer;font-size:0.72rem;padding:0 2px" title="Reabrir">↺</button>` : ''}
-        <button onclick="deleteTask(${data.id})" style="background:none;border:none;color:var(--text-3);cursor:pointer;font-size:0.72rem;padding:0 2px" title="Eliminar">✕</button>
-      </div>
-    </div>`;
-  return div;
-}
+    timelineEvents.forEach((ev, idx) => {
+      const div = document.createElement('div');
+      div.id = `event-card-${ev.id}`;
+      div.style.cssText = 'position:relative;margin-bottom:28px;padding-left:20px';
 
-function moveTask(id, newStatus) {
-  fetch(`/projects/${PROJECT_ID}/tasks/${id}/move/`, {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
-    body: JSON.stringify({status: newStatus})
-  }).then(() => {
-    // Rebuild card in new column
-    const oldCard = document.getElementById(`task-${id}`);
-    const title = oldCard?.querySelector('span')?.textContent || '';
-    oldCard?.remove();
-    const col = document.querySelector(`#kanban-board .kanban-tasks[data-status="${newStatus}"]`);
-    if (col) col.appendChild(buildTaskCard({id, title, status: newStatus}));
-  });
-}
+      // Dot
+      const dot = document.createElement('div');
+      dot.style.cssText = 'position:absolute;left:-28px;top:18px;width:12px;height:12px;border-radius:50%;background:var(--accent);border:2px solid var(--bg);z-index:1';
+      div.appendChild(dot);
 
-function deleteTask(id) {
-  if (!confirm('¿Eliminar esta tarea?')) return;
-  fetch(`/projects/${PROJECT_ID}/tasks/${id}/delete/`, {
-    method: 'POST', headers: {'X-CSRFToken': getCookie('csrftoken')}
-  }).then(() => {
-    document.getElementById(`task-${id}`)?.remove();
-    showToast('Tarea eliminada');
-  });
-}
+      // Card
+      const card = document.createElement('div');
+      card.style.cssText = 'background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px 18px;transition:border-color 0.15s';
+      card.onmouseover = () => card.style.borderColor = 'var(--border-2)';
+      card.onmouseout  = () => card.style.borderColor = 'var(--border)';
 
-// Close modals on outside click
-document.addEventListener('click', e => {
-  ['char-modal', 'place-modal'].forEach(id => {
-    const modal = document.getElementById(id);
-    if (e.target === modal) modal.style.display = 'none';
-  });
-});
+      // Header: fecha + número + botones
+      const header = document.createElement('div');
+      header.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap';
 
-// Enter key on modal inputs
-document.getElementById('char-name')?.addEventListener('keydown', e => { if (e.key === 'Enter') saveCharacter(); });
-document.getElementById('place-name')?.addEventListener('keydown', e => { if (e.key === 'Enter') savePlace(); });
+      if (ev.date_label) {
+        const dateSpan = document.createElement('span');
+        dateSpan.style.cssText = 'font-family:var(--font-mono);font-size:0.75rem;color:var(--accent);background:var(--accent-glow);padding:2px 8px;border-radius:12px;border:1px solid var(--accent-2)';
+        dateSpan.textContent = ev.date_label;
+        header.appendChild(dateSpan);
+      }
+
+      const orderSpan = document.createElement('span');
+      orderSpan.style.cssText = 'font-size:0.72rem;color:var(--text-3);font-family:var(--font-mono)';
+      orderSpan.textContent = `#${idx + 1}`;
+      header.appendChild(orderSpan);
+
+      const actions = document.createElement('div');
+      actions.style.cssText = 'display:flex;gap:2px;margin-left:auto';
+
+      if (idx > 0) {
+        const upBtn = document.createElement('button');
+        upBtn.textContent = '↑'; upBtn.title = 'Mover arriba';
+        upBtn.style.cssText = 'background:none;border:none;color:var(--text-3);cursor:pointer;font-size:0.82rem;padding:2px 5px';
+        upBtn.onclick = () => moveEvent(idx, idx - 1);
+        actions.appendChild(upBtn);
+      }
+      if (idx < timelineEvents.length - 1) {
+        const downBtn = document.createElement('button');
+        downBtn.textContent = '↓'; downBtn.title = 'Mover abajo';
+        downBtn.style.cssText = 'background:none;border:none;color:var(--text-3);cursor:pointer;font-size:0.82rem;padding:2px 5px';
+        downBtn.onclick = () => moveEvent(idx, idx + 1);
+        actions.appendChild(downBtn);
+      }
+
+      const editBtn = document.createElement('button');
+      editBtn.textContent = '✎'; editBtn.title = 'Editar';
+      editBtn.style.cssText = 'background:none;border:none;color:var(--text-3);cursor:pointer;font-size:0.88rem;padding:2px 5px';
+      editBtn.onclick = () => openEventModal(ev);
+      actions.appendChild(editBtn);
+
+      const delBtn = document.createElement('button');
+      delBtn.textContent = '✕'; delBtn.title = 'Eliminar';
+      delBtn.style.cssText = 'background:none;border:none;color:var(--text-3);cursor:pointer;font-size:0.82rem;padding:2px 5px';
+      delBtn.onclick = () => deleteEvent(ev.id);
+      actions.appendChild(delBtn);
+
+      header.appendChild(actions);
+      card.appendChild(header);
+
+      // Título
+      const title = document.createElement('div');
+      title.style.cssText = 'font-weight:500;font-size:0.95rem;color:var(--text);margin-bottom:6px';
+      title.textContent = ev.title;
+      card.appendChild(title);
+
+      // Descripción
+      if (ev.description) {
+        const desc = document.createElement('div');
+        desc.style.cssText = 'font-size:0.85rem;color:var(--text-2);line-height:1.6;margin-bottom:8px';
+        desc.textContent = ev.description;
+        card.appendChild(desc);
+      }
+
+      // Chips de personajes y lugares
+      if (ev.characters.length > 0 || ev.places.length > 0) {
+        const chips = document.createElement('div');
+        chips.style.cssText = 'display:flex;flex-wrap:wrap;gap:5px;margin-top:8px';
+        ev.characters.forEach(c => {
+          const chip = document.createElement('span');
+          chip.style.cssText = 'font-size:0.72rem;padding:2px 8px;border-radius:20px;background:var(--accent-glow);color:var(--accent);border:1px solid var(--accent-2)';
+          chip.textContent = '👤 ' + c.name;
+          chips.appendChild(chip);
+        });
+        ev.places.forEach(p => {
+          const chip = document.createElement('span');
+          chip.style.cssText = 'font-size:0.72rem;padding:2px 8px;border-radius:20px;background:var(--bg-4);color:var(--text-2);border:1px solid var(--border)';
+          chip.textContent = '📍 ' + p.name;
+          chips.appendChild(chip);
+        });
+        card.appendChild(chips);
+      }
+
+      div.appendChild(card);
+      container.appendChild(div);
+    });
+  }
+
+  function openEventModal(ev = null) {
+    document.getElementById('event-title').value    = ev ? ev.title       : '';
+    document.getElementById('event-date').value     = ev ? ev.date_label  : '';
+    document.getElementById('event-desc').value     = ev ? ev.description : '';
+    document.getElementById('event-editing-id').value = ev ? ev.id        : '';
+    document.getElementById('event-modal-title').textContent = ev ? 'Editar evento' : 'Nuevo evento';
+
+    selectedCharIds  = new Set(ev ? ev.characters.map(c => c.id) : []);
+    selectedPlaceIds = new Set(ev ? ev.places.map(p => p.id)     : []);
+
+    renderModalSelectors();
+    document.getElementById('event-modal').style.display = 'flex';
+    setTimeout(() => document.getElementById('event-title').focus(), 50);
+  }
+
+  function closeEventModal() {
+    document.getElementById('event-modal').style.display = 'none';
+  }
+
+  function renderModalSelectors() {
+    const charContainer = document.getElementById('event-chars');
+    charContainer.innerHTML = '';
+    if (ALL_CHARACTERS.length === 0) {
+      charContainer.innerHTML = '<span style="font-size:0.8rem;color:var(--text-3)">Sin personajes en la biblia — añádelos primero.</span>';
+    } else {
+      ALL_CHARACTERS.forEach(c => {
+        const selected = selectedCharIds.has(c.id);
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.title = c.role;
+        btn.style.cssText = `padding:3px 10px;border-radius:20px;font-size:0.78rem;cursor:pointer;border:1px solid;transition:all 0.15s;font-family:inherit;
+          ${selected ? 'background:var(--accent-glow);color:var(--accent);border-color:var(--accent-2)' : 'background:var(--bg-4);color:var(--text-2);border-color:var(--border)'}`;
+        btn.textContent = (selected ? '✓ ' : '') + c.name;
+        btn.onclick = () => {
+          if (selectedCharIds.has(c.id)) selectedCharIds.delete(c.id);
+          else selectedCharIds.add(c.id);
+          renderModalSelectors();
+        };
+        charContainer.appendChild(btn);
+      });
+    }
+
+    const placeContainer = document.getElementById('event-places');
+    placeContainer.innerHTML = '';
+    if (ALL_PLACES.length === 0) {
+      placeContainer.innerHTML = '<span style="font-size:0.8rem;color:var(--text-3)">Sin lugares en la biblia — añádelos primero.</span>';
+    } else {
+      ALL_PLACES.forEach(p => {
+        const selected = selectedPlaceIds.has(p.id);
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.style.cssText = `padding:3px 10px;border-radius:20px;font-size:0.78rem;cursor:pointer;border:1px solid;transition:all 0.15s;font-family:inherit;
+          ${selected ? 'background:var(--bg-3);color:var(--text);border-color:var(--border-2)' : 'background:var(--bg-4);color:var(--text-2);border-color:var(--border)'}`;
+        btn.textContent = (selected ? '📍 ' : '· ') + p.name;
+        btn.onclick = () => {
+          if (selectedPlaceIds.has(p.id)) selectedPlaceIds.delete(p.id);
+          else selectedPlaceIds.add(p.id);
+          renderModalSelectors();
+        };
+        placeContainer.appendChild(btn);
+      });
+    }
+  }
+
+  async function saveEvent() {
+    const title = document.getElementById('event-title').value.trim();
+    if (!title) { document.getElementById('event-title').focus(); return; }
+
+    const editingId = document.getElementById('event-editing-id').value;
+    const payload = {
+      title,
+      date_label:    document.getElementById('event-date').value.trim(),
+      description:   document.getElementById('event-desc').value.trim(),
+      character_ids: [...selectedCharIds],
+      place_ids:     [...selectedPlaceIds],
+    };
+
+    if (editingId) {
+      await fetch(`/projects/${PROJECT_ID}/events/${editingId}/update/`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
+        body: JSON.stringify(payload)
+      });
+      const ev = timelineEvents.find(e => e.id == editingId);
+      if (ev) {
+        ev.title       = payload.title;
+        ev.date_label  = payload.date_label;
+        ev.description = payload.description;
+        ev.characters  = ALL_CHARACTERS.filter(c => selectedCharIds.has(c.id));
+        ev.places      = ALL_PLACES.filter(p => selectedPlaceIds.has(p.id));
+      }
+    } else {
+      const r = await fetch(`/projects/${PROJECT_ID}/events/new/`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
+        body: JSON.stringify(payload)
+      });
+      const data = await r.json();
+      timelineEvents.push(data);
+    }
+
+    closeEventModal();
+    renderTimeline();
+    showToast('Evento guardado');
+  }
+
+  async function deleteEvent(id) {
+    if (!confirm('¿Eliminar este evento?')) return;
+    await fetch(`/projects/${PROJECT_ID}/events/${id}/delete/`, {
+      method: 'POST',
+      headers: {'X-CSRFToken': getCookie('csrftoken')}
+    });
+    timelineEvents = timelineEvents.filter(e => e.id !== id);
+    renderTimeline();
+    showToast('Evento eliminado');
+  }
+
+  async function moveEvent(fromIdx, toIdx) {
+    [timelineEvents[fromIdx], timelineEvents[toIdx]] = [timelineEvents[toIdx], timelineEvents[fromIdx]];
+    timelineEvents.forEach((ev, i) => ev.order = i);
+    renderTimeline();
+    await fetch(`/projects/${PROJECT_ID}/events/reorder/`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
+      body: JSON.stringify({order: timelineEvents.map(ev => ({id: ev.id, order: ev.order}))})
+    });
+  }
+
+  // Render inicial de la timeline
+  renderTimeline();
 </script>
 {% endblock %}

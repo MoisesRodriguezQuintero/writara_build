@@ -21,4 +21,9 @@ urlpatterns = [
     path('<int:pk>/tasks/new/', views.task_create, name='task_create'),
     path('<int:pk>/tasks/<int:tid>/move/', views.task_move, name='task_move'),
     path('<int:pk>/tasks/<int:tid>/delete/', views.task_delete, name='task_delete'),
+    # Timneline
+    path('<int:pk>/events/new/',              views.event_create,  name='event_create'),
+    path('<int:pk>/events/<int:eid>/update/', views.event_update,  name='event_update'),
+    path('<int:pk>/events/<int:eid>/delete/', views.event_delete,  name='event_delete'),
+    path('<int:pk>/events/reorder/',          views.event_reorder, name='event_reorder'),
 ]

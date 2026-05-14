@@ -1,4 +1,5 @@
 import json
+from .models import Project, Section, Character, Place, Task, TimelineEvent
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
@@ -38,10 +39,12 @@ def project_detail(request, pk):
     tasks = project.tasks.all()
     prefs = get_prefs(request.user)
     total_words = sum(s.word_count for s in sections)
+    events = project.events.all().prefetch_related('characters', 'places')
     return render(request, 'projects/detail.html', {
         'project': project, 'sections': sections, 'characters': characters,
         'places': places, 'tasks': tasks, 'total_words': total_words,
         'prefs': prefs, 'active': 'projects',
+        'events': events,
     })
 
 @login_required
@@ -154,4 +157,66 @@ def task_delete(request, pk, tid):
     project = get_object_or_404(Project, pk=pk, owner=request.user)
     task = get_object_or_404(Task, pk=tid, project=project)
     task.delete()
+    return JsonResponse({'ok': True})
+
+@login_required
+@require_POST
+def event_create(request, pk):
+    project = get_object_or_404(Project, pk=pk, owner=request.user)
+    data = json.loads(request.body)
+    order = project.events.count()
+    event = TimelineEvent.objects.create(
+        project=project,
+        title=data.get('title', 'Nuevo evento'),
+        description=data.get('description', ''),
+        date_label=data.get('date_label', ''),
+        order=order,
+    )
+    char_ids = data.get('character_ids', [])
+    place_ids = data.get('place_ids', [])
+    if char_ids:
+        event.characters.set(Character.objects.filter(pk__in=char_ids, project=project))
+    if place_ids:
+        event.places.set(Place.objects.filter(pk__in=place_ids, project=project))
+    return JsonResponse({
+        'id': event.pk,
+        'title': event.title,
+        'description': event.description,
+        'date_label': event.date_label,
+        'order': event.order,
+        'characters': [{'id': c.pk, 'name': c.name} for c in event.characters.all()],
+        'places': [{'id': p.pk, 'name': p.name} for p in event.places.all()],
+    })
+
+@login_required
+@require_POST
+def event_update(request, pk, eid):
+    project = get_object_or_404(Project, pk=pk, owner=request.user)
+    event = get_object_or_404(TimelineEvent, pk=eid, project=project)
+    data = json.loads(request.body)
+    event.title = data.get('title', event.title)
+    event.description = data.get('description', event.description)
+    event.date_label = data.get('date_label', event.date_label)
+    event.save()
+    char_ids = data.get('character_ids', [])
+    place_ids = data.get('place_ids', [])
+    event.characters.set(Character.objects.filter(pk__in=char_ids, project=project))
+    event.places.set(Place.objects.filter(pk__in=place_ids, project=project))
+    return JsonResponse({'ok': True})
+
+@login_required
+@require_POST
+def event_reorder(request, pk):
+    project = get_object_or_404(Project, pk=pk, owner=request.user)
+    data = json.loads(request.body)
+    for item in data.get('order', []):
+        TimelineEvent.objects.filter(pk=item['id'], project=project).update(order=item['order'])
+    return JsonResponse({'ok': True})
+
+@login_required
+@require_POST
+def event_delete(request, pk, eid):
+    project = get_object_or_404(Project, pk=pk, owner=request.user)
+    event = get_object_or_404(TimelineEvent, pk=eid, project=project)
+    event.delete()
     return JsonResponse({'ok': True})

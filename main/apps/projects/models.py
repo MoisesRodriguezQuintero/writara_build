@@ -70,3 +70,18 @@ class Task(models.Model):
 
     class Meta:
         ordering = ['order']
+
+class TimelineEvent(models.Model):
+    project     = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='events')
+    title       = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    date_label  = models.CharField(max_length=100, blank=True)  # "Día 1", "Año 3", libre
+    order       = models.PositiveIntegerField(default=0)
+    characters  = models.ManyToManyField(Character, blank=True, related_name='events')
+    places      = models.ManyToManyField(Place, blank=True, related_name='events')
+
+    class Meta:
+        ordering = ['order']
+
+    def __str__(self):
+        return f"{self.project.name} — {self.title}"
