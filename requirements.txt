@@ -1,0 +1,7 @@
+django>=6.0
+gunicorn
+psycopg2
+html2text
+bleach
+odfpy
+whitenoise
