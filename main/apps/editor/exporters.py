@@ -20,6 +20,24 @@ class DocumentExporter:
             clean = re.sub(r'<[^>]+>', '', self.doc.content)
             return f"# {self.doc.title}\n\n{clean}"
 
+    def to_pdf(self):
+        from weasyprint import HTML as WeasyprintHTML
+
+        html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+        </head>
+        <body>
+            <h1>{self.doc.title}</h1>
+            {self.doc.content}
+        </body>
+        </html>
+        """
+
+        return WeasyprintHTML(string=html).write_pdf()
+
     def to_odt(self) -> bytes:                         # ← indentado dentro de la clase
         from odf.opendocument import OpenDocumentText
         from odf.style import Style, TextProperties, ParagraphProperties

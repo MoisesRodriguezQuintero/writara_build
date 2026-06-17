@@ -6,7 +6,7 @@ from django.views.decorators.http import require_POST
 from django.utils import timezone
 from .models import Document, DocumentVersion
 from main.apps.accounts.models import UserPreferences
-
+from weasyprint import HTML as WeasyprintHTML
 def get_prefs(user):
     prefs, _ = UserPreferences.objects.get_or_create(user=user)
     return prefs
@@ -110,6 +110,11 @@ def document_export(request, pk, fmt):
         return response
     elif fmt == 'odt':
         content = exp.to_odt()
+    elif fmt == 'pdf':
+        pdf = exp.to_pdf()
+        response = HttpResponse(pdf, content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="{doc.title}.pdf"'
+        return response
     response = HttpResponse(
         content,
         content_type='application/vnd.oasis.opendocument.text'

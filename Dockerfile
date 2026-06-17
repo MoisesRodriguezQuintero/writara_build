@@ -22,6 +22,12 @@ COPY . .
 # Recoger archivos estáticos
 RUN python manage.py collectstatic --noinput
 
+RUN apt-get update && apt-get install -y \
+    libpq-dev gcc \
+    libpango-1.0-0 libpangoft2-1.0-0 libpangocairo-1.0-0 \
+    libcairo2 libgdk-pixbuf-2.0-0 libffi-dev \
+    && rm -rf /var/lib/apt/lists/*
+
 EXPOSE 8000
 
 CMD ["gunicorn", "main.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3"]
