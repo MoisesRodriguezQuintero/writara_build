@@ -24,6 +24,8 @@ def profile(request):
         prefs.theme = request.POST.get('theme', 'dark')
         prefs.editor_font = request.POST.get('editor_font', 'serif')
         prefs.editor_font_size = int(request.POST.get('editor_font_size', 17))
+        prefs.paragraph_spacing = int(request.POST.get('paragraph_spacing', 10))
+        prefs.text_indent       = int(request.POST.get('text_indent', 0))
         prefs.editor_width = request.POST.get('editor_width', 'medium')
         prefs.autosave_interval = int(request.POST.get('autosave_interval', 30))
         prefs.save()

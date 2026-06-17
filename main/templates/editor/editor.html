@@ -88,6 +88,32 @@
       </div>
     </div>
 
+    <div class="editor-panel__section">
+      <div class="editor-panel__title">Tipografía</div>
+
+      <div style="margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;font-size:0.78rem;color:var(--text-2);margin-bottom:4px">
+          <span>Separación párrafos</span>
+          <span id="spacing-val">{{ prefs.paragraph_spacing|default:10 }}px</span>
+        </div>
+        <input type="range" min="0" max="48" step="2"
+               value="{{ prefs.paragraph_spacing|default:10 }}"
+               style="width:100%"
+               oninput="updateSpacing(this.value)">
+      </div>
+
+      <div>
+        <div style="display:flex;justify-content:space-between;font-size:0.78rem;color:var(--text-2);margin-bottom:4px">
+          <span>Sangría primera línea</span>
+          <span id="indent-val">{{ prefs.text_indent|default:0 }}px</span>
+        </div>
+        <input type="range" min="0" max="60" step="4"
+               value="{{ prefs.text_indent|default:0 }}"
+               style="width:100%"
+               oninput="updateIndent(this.value)">
+      </div>
+    </div>
+
     <!-- Pomodoro -->
     <div class="editor-panel__section">
       <div class="editor-panel__title">Pomodoro</div>
@@ -318,6 +344,45 @@ function updatePomoDisplay() {
   document.getElementById('pomo-display').textContent = `${m}:${s}`;
 }
 
+// Aplicar valores guardados al cargar
+function applyTypographyPrefs() {
+  const spacing = {{ prefs.paragraph_spacing|default:10 }};
+  const indent  = {{ prefs.text_indent|default:0 }};
+  document.documentElement.style.setProperty('--editor-paragraph-spacing', spacing + 'px');
+  document.documentElement.style.setProperty('--editor-text-indent', indent + 'px');
+}
+
+function updateSpacing(val) {
+  document.getElementById('spacing-val').textContent = val + 'px';
+  document.documentElement.style.setProperty('--editor-paragraph-spacing', val + 'px');
+  saveTypographyPrefs();
+}
+
+function updateIndent(val) {
+  document.getElementById('indent-val').textContent = val + 'px';
+  document.documentElement.style.setProperty('--editor-text-indent', val + 'px');
+  saveTypographyPrefs();
+}
+
+let typographyDebounce;
+function saveTypographyPrefs() {
+  clearTimeout(typographyDebounce);
+  typographyDebounce = setTimeout(() => {
+    const spacing = parseInt(document.getElementById('spacing-val').textContent);
+    const indent  = parseInt(document.getElementById('indent-val').textContent);
+    fetch('/accounts/profile/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'X-CSRFToken': getCookie('csrftoken')
+      },
+      body: `theme={{ prefs.theme|default:'dark' }}&editor_font={{ prefs.editor_font|default:'serif' }}&editor_font_size={{ prefs.editor_font_size|default:17 }}&editor_width={{ prefs.editor_width|default:'medium' }}&autosave_interval={{ prefs.autosave_interval|default:30 }}&paragraph_spacing=${spacing}&text_indent=${indent}`
+    });
+  }, 800);
+}
+
+// Aplicar al cargar
+applyTypographyPrefs();
 function editorApp() { return {}; }
 </script>
 {% endblock %}

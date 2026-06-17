@@ -20,6 +20,8 @@ class UserPreferences(models.Model):
     editor_width = models.CharField(max_length=10, choices=WIDTH_CHOICES, default='medium')
     autosave_interval = models.IntegerField(default=30)
     sidebar_collapsed = models.BooleanField(default=False)
+    paragraph_spacing = models.IntegerField(default=10)   # px entre párrafos
+    text_indent       = models.IntegerField(default=0)    # px de sangría primera línea
 
     def __str__(self):
         return f"Prefs de {self.user.username}"
