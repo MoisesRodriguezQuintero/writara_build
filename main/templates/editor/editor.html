@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load sanitize %}
 {% block title %}{{ doc.title }} — Writara{% endblock %}
 
 {% block content %}
@@ -12,7 +13,7 @@
     <input class="editor-title-input"
            type="text"
            id="doc-title-input"
-           value="{{ doc.title|escapejs }}"
+           value="{{ doc.title }}"
            placeholder="Sin título…"
            oninput="markDirty()">
 
@@ -63,7 +64,11 @@
         {% for v in versions %}
         <div class="version-item">
           <span>{{ v.created_at|date:"d M H:i" }} · {{ v.word_count }}p</span>
-          <a href="/editor/{{ doc.pk }}/versions/{{ v.pk }}/restore/">Restaurar</a>
+          <form method="post" action="/editor/{{ doc.pk }}/versions/{{ v.pk }}/restore/" style="display:inline"
+                onsubmit="return confirm('¿Restaurar esta versión? La actual se guardará como versión.')">
+            {% csrf_token %}
+            <button type="submit" style="background:none;border:none;padding:0;color:inherit;cursor:pointer;text-decoration:underline;font:inherit">Restaurar</button>
+          </form>
         </div>
         {% endfor %}
       </div>
@@ -145,7 +150,7 @@
 </div>
 
 <!-- Hidden content store — uses |safe so HTML is preserved, read as innerHTML -->
-<div id="raw-doc-content" style="display:none">{{ doc.content|safe }}</div>
+<div id="raw-doc-content" style="display:none">{{ doc.content|safe_html }}</div>
 {% endblock %}
 
 {% block extra_js %}

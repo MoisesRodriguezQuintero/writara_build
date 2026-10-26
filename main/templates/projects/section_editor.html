@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load sanitize %}
 {% block title %}{{ section.title }} — {{ project.name }} — Writara{% endblock %}
 
 {% block content %}
@@ -46,7 +47,7 @@
 <script>
 function sectionEditor(projectId, sectionId, autosaveSec) {
   return {
-    title: {{ section.title|safe|json_script:"_st"|striptags }},
+    title: '{{ section.title|escapejs }}',
     dirty: false, saving: false,
     statusText: 'Guardado',
     wordCount: 0, readTime: 0,
@@ -96,5 +97,5 @@ function sectionEditor(projectId, sectionId, autosaveSec) {
   }
 }
 </script>
-<div id="raw-content" style="display:none">{{ section.content }}</div>
+<div id="raw-content" style="display:none">{{ section.content|clean_html }}</div>
 {% endblock %}

@@ -100,11 +100,12 @@ Copia `.env.example` a `.env` y rellena los valores.
 | Variable | Descripción | Ejemplo |
 |---|---|---|
 | `SECRET_KEY` | Clave secreta de Django | cadena aleatoria de 50+ chars |
-| `DEBUG` | Modo debug | `False` en producción |
+| `DEBUG` | Modo debug (con `False`, `SECRET_KEY` es obligatoria) | `False` en producción |
 | `ALLOWED_HOSTS` | Hosts permitidos | `localhost,127.0.0.1,192.168.1.10` |
 | `POSTGRES_DB` | Nombre de la base de datos | `writara` |
 | `POSTGRES_USER` | Usuario de PostgreSQL | `writara` |
 | `POSTGRES_PASSWORD` | Contraseña de PostgreSQL | cadena segura |
+| `CSRF_TRUSTED_ORIGINS` | Orígenes https de confianza (opcional, tras proxy/dominio) | `https://writara.example.com` |
 | `WEB_PORT` | Puerto expuesto | `8000` |
 
 ---
@@ -120,6 +121,14 @@ pip install -r requirements.txt
 python manage.py migrate
 python manage.py runserver
 ```
+
+## Tests
+
+```bash
+python manage.py test main
+```
+
+Cubren saneado de HTML, exportadores (MD/HTML/TXT/ODT/PDF), enlaces wiki, etiquetas por usuario, proyectos, análisis de texto y registro/perfil.
 
 ---
 

@@ -6,10 +6,11 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-# Dependencias del sistema (necesarias para psycopg2)
+# Dependencias del sistema (psycopg2 y WeasyPrint)
 RUN apt-get update && apt-get install -y \
-    libpq-dev \
-    gcc \
+    libpq-dev gcc \
+    libpango-1.0-0 libpangoft2-1.0-0 libpangocairo-1.0-0 \
+    libcairo2 libgdk-pixbuf-2.0-0 libffi-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Dependencias Python
@@ -21,12 +22,6 @@ COPY . .
 
 # Recoger archivos estáticos
 RUN python manage.py collectstatic --noinput
-
-RUN apt-get update && apt-get install -y \
-    libpq-dev gcc \
-    libpango-1.0-0 libpangoft2-1.0-0 libpangocairo-1.0-0 \
-    libcairo2 libgdk-pixbuf-2.0-0 libffi-dev \
-    && rm -rf /var/lib/apt/lists/*
 
 EXPOSE 8000
 

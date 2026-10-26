@@ -2,32 +2,43 @@ from django.shortcuts import render, redirect
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.contrib.auth.forms import UserCreationForm
-from .models import User, UserPreferences
+from .forms import RegisterForm
+from .models import UserPreferences
+from main.utils import to_int
+
 
 def register(request):
+    if request.user.is_authenticated:
+        return redirect('editor:list')
     if request.method == 'POST':
-        form = UserCreationForm(request.POST)
+        form = RegisterForm(request.POST)
         if form.is_valid():
             user = form.save()
-            UserPreferences.objects.create(user=user)
+            UserPreferences.objects.get_or_create(user=user)
             login(request, user)
             return redirect('editor:list')
     else:
-        form = UserCreationForm()
+        form = RegisterForm()
     return render(request, 'registration/register.html', {'form': form})
+
+
+def _choice(value, choices, current):
+    """Valor enviado si es una opción válida; si no, se conserva el actual."""
+    return value if value in {c for c, _ in choices} else current
+
 
 @login_required
 def profile(request):
     prefs, _ = UserPreferences.objects.get_or_create(user=request.user)
     if request.method == 'POST':
-        prefs.theme = request.POST.get('theme', 'dark')
-        prefs.editor_font = request.POST.get('editor_font', 'serif')
-        prefs.editor_font_size = int(request.POST.get('editor_font_size', 17))
-        prefs.paragraph_spacing = int(request.POST.get('paragraph_spacing', 10))
-        prefs.text_indent       = int(request.POST.get('text_indent', 0))
-        prefs.editor_width = request.POST.get('editor_width', 'medium')
-        prefs.autosave_interval = int(request.POST.get('autosave_interval', 30))
+        post = request.POST
+        prefs.theme = _choice(post.get('theme'), UserPreferences.THEME_CHOICES, prefs.theme)
+        prefs.editor_font = _choice(post.get('editor_font'), UserPreferences.FONT_CHOICES, prefs.editor_font)
+        prefs.editor_width = _choice(post.get('editor_width'), UserPreferences.WIDTH_CHOICES, prefs.editor_width)
+        prefs.editor_font_size = to_int(post.get('editor_font_size'), prefs.editor_font_size, 10, 40)
+        prefs.paragraph_spacing = to_int(post.get('paragraph_spacing'), prefs.paragraph_spacing, 0, 60)
+        prefs.text_indent = to_int(post.get('text_indent'), prefs.text_indent, 0, 100)
+        prefs.autosave_interval = to_int(post.get('autosave_interval'), prefs.autosave_interval, 5, 600)
         prefs.save()
         messages.success(request, 'Preferencias guardadas.')
         return redirect('accounts:profile')

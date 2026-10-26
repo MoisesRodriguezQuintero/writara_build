@@ -1,11 +1,21 @@
-import json
-from .models import Project, Section, Character, Place, Task, TimelineEvent
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
-from .models import Project, Section, Character, Place, Task
+from .models import Project, Section, Character, Place, Task, TimelineEvent
 from main.apps.accounts.models import UserPreferences
+from main.utils import clean_html, count_words, json_body, short_text, valid_color
+
+TASK_STATUSES = {value for value, _ in Task.STATUS_CHOICES}
+CHARACTER_ROLES = {value for value, _ in Character.ROLE_CHOICES}
+
+
+def _id_list(value):
+    """Lista de ids enteros a partir de un valor JSON arbitrario."""
+    if not isinstance(value, list):
+        return []
+    return [i for i in value if isinstance(i, int) and not isinstance(i, bool)]
+
 
 def get_prefs(user):
     prefs, _ = UserPreferences.objects.get_or_create(user=user)
@@ -22,9 +32,9 @@ def project_create(request):
     if request.method == 'POST':
         p = Project.objects.create(
             owner=request.user,
-            name=request.POST.get('name', 'Nuevo proyecto'),
+            name=short_text(request.POST.get('name'), 'Nuevo proyecto'),
             description=request.POST.get('description', ''),
-            cover_color=request.POST.get('cover_color', '#6366f1'),
+            cover_color=valid_color(request.POST.get('cover_color')),
         )
         return redirect('projects:detail', p.pk)
     prefs = get_prefs(request.user)
@@ -61,12 +71,12 @@ def section_edit(request, pk, sid):
 def section_autosave(request, pk, sid):
     project = get_object_or_404(Project, pk=pk, owner=request.user)
     section = get_object_or_404(Section, pk=sid, project=project)
-    data = json.loads(request.body)
-    import re
-    section.title = data.get('title', section.title) or 'Sin título'
-    section.content = data.get('content', section.content)
-    text = re.sub(r'<[^>]+>', ' ', section.content)
-    section.word_count = len(text.split())
+    data = json_body(request)
+    section.title = short_text(data.get('title', section.title), 'Sin título')
+    content = data.get('content', section.content)
+    if isinstance(content, str):
+        section.content = clean_html(content)
+    section.word_count = count_words(section.content)
     section.save()
     return JsonResponse({'saved_at': section.updated_at.strftime('%H:%M:%S'), 'word_count': section.word_count})
 
@@ -74,9 +84,9 @@ def section_autosave(request, pk, sid):
 @require_POST
 def section_create(request, pk):
     project = get_object_or_404(Project, pk=pk, owner=request.user)
-    data = json.loads(request.body)
+    data = json_body(request)
     order = project.sections.count()
-    s = Section.objects.create(project=project, title=data.get('title', 'Nueva sección'), order=order)
+    s = Section.objects.create(project=project, title=short_text(data.get('title'), 'Nueva sección'), order=order)
     return JsonResponse({'id': s.pk, 'title': s.title})
 
 @login_required
@@ -84,8 +94,11 @@ def section_create(request, pk):
 def task_move(request, pk, tid):
     project = get_object_or_404(Project, pk=pk, owner=request.user)
     task = get_object_or_404(Task, pk=tid, project=project)
-    data = json.loads(request.body)
-    task.status = data.get('status', task.status)
+    data = json_body(request)
+    status = data.get('status', task.status)
+    if status not in TASK_STATUSES:
+        return JsonResponse({'error': 'Estado no válido'}, status=400)
+    task.status = status
     task.save()
     return JsonResponse({'ok': True})
 
@@ -100,12 +113,12 @@ def project_delete(request, pk):
 @require_POST
 def character_create(request, pk):
     project = get_object_or_404(Project, pk=pk, owner=request.user)
-    data = json.loads(request.body)
+    data = json_body(request)
     c = Character.objects.create(
         project=project,
-        name=data.get('name', 'Personaje'),
-        role=data.get('role', 'secondary'),
-        description=data.get('description', ''),
+        name=short_text(data.get('name'), 'Personaje'),
+        role=data.get('role') if data.get('role') in CHARACTER_ROLES else 'secondary',
+        description=str(data.get('description', '')),
     )
     return JsonResponse({'id': c.pk, 'name': c.name, 'role': c.role, 'role_display': c.get_role_display(), 'description': c.description})
 
@@ -121,11 +134,11 @@ def character_delete(request, pk, cid):
 @require_POST
 def place_create(request, pk):
     project = get_object_or_404(Project, pk=pk, owner=request.user)
-    data = json.loads(request.body)
+    data = json_body(request)
     p = Place.objects.create(
         project=project,
-        name=data.get('name', 'Lugar'),
-        description=data.get('description', ''),
+        name=short_text(data.get('name'), 'Lugar'),
+        description=str(data.get('description', '')),
     )
     return JsonResponse({'id': p.pk, 'name': p.name, 'description': p.description})
 
@@ -141,12 +154,13 @@ def place_delete(request, pk, pid):
 @require_POST
 def task_create(request, pk):
     project = get_object_or_404(Project, pk=pk, owner=request.user)
-    data = json.loads(request.body)
+    data = json_body(request)
     order = project.tasks.count()
+    status = data.get('status', 'todo')
     t = Task.objects.create(
         project=project,
-        title=data.get('title', 'Nueva tarea'),
-        status=data.get('status', 'todo'),
+        title=short_text(data.get('title'), 'Nueva tarea'),
+        status=status if status in TASK_STATUSES else 'todo',
         order=order,
     )
     return JsonResponse({'id': t.pk, 'title': t.title, 'status': t.status})
@@ -163,17 +177,17 @@ def task_delete(request, pk, tid):
 @require_POST
 def event_create(request, pk):
     project = get_object_or_404(Project, pk=pk, owner=request.user)
-    data = json.loads(request.body)
+    data = json_body(request)
     order = project.events.count()
     event = TimelineEvent.objects.create(
         project=project,
-        title=data.get('title', 'Nuevo evento'),
-        description=data.get('description', ''),
-        date_label=data.get('date_label', ''),
+        title=short_text(data.get('title'), 'Nuevo evento'),
+        description=str(data.get('description', '')),
+        date_label=short_text(data.get('date_label'), '', 100),
         order=order,
     )
-    char_ids = data.get('character_ids', [])
-    place_ids = data.get('place_ids', [])
+    char_ids = _id_list(data.get('character_ids', []))
+    place_ids = _id_list(data.get('place_ids', []))
     if char_ids:
         event.characters.set(Character.objects.filter(pk__in=char_ids, project=project))
     if place_ids:
@@ -193,13 +207,13 @@ def event_create(request, pk):
 def event_update(request, pk, eid):
     project = get_object_or_404(Project, pk=pk, owner=request.user)
     event = get_object_or_404(TimelineEvent, pk=eid, project=project)
-    data = json.loads(request.body)
-    event.title = data.get('title', event.title)
-    event.description = data.get('description', event.description)
-    event.date_label = data.get('date_label', event.date_label)
+    data = json_body(request)
+    event.title = short_text(data.get('title', event.title), event.title)
+    event.description = str(data.get('description', event.description))
+    event.date_label = short_text(data.get('date_label', event.date_label), '', 100)
     event.save()
-    char_ids = data.get('character_ids', [])
-    place_ids = data.get('place_ids', [])
+    char_ids = _id_list(data.get('character_ids', []))
+    place_ids = _id_list(data.get('place_ids', []))
     event.characters.set(Character.objects.filter(pk__in=char_ids, project=project))
     event.places.set(Place.objects.filter(pk__in=place_ids, project=project))
     return JsonResponse({'ok': True})
@@ -208,9 +222,10 @@ def event_update(request, pk, eid):
 @require_POST
 def event_reorder(request, pk):
     project = get_object_or_404(Project, pk=pk, owner=request.user)
-    data = json.loads(request.body)
+    data = json_body(request)
     for item in data.get('order', []):
-        TimelineEvent.objects.filter(pk=item['id'], project=project).update(order=item['order'])
+        if isinstance(item, dict) and isinstance(item.get('id'), int) and isinstance(item.get('order'), int):
+            TimelineEvent.objects.filter(pk=item['id'], project=project).update(order=item['order'])
     return JsonResponse({'ok': True})
 
 @login_required

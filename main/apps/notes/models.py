@@ -1,10 +1,15 @@
 from django.conf import settings
 from django.db import models
-from django.utils.text import slugify
+from .utils import title_to_slug
 
 class Tag(models.Model):
-    name = models.CharField(max_length=50, unique=True)
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='tags')
+    name = models.CharField(max_length=50)
     color = models.CharField(max_length=7, default='#6366f1')
+
+    class Meta:
+        ordering = ['name']
+        unique_together = [('owner', 'name')]
 
     def __str__(self):
         return self.name
@@ -26,7 +31,7 @@ class Note(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.slug:
-            base = slugify(self.title) or 'nota'
+            base = title_to_slug(self.title)
             slug = base
             n = 1
             while Note.objects.filter(owner=self.owner, slug=slug).exclude(pk=self.pk).exists():
@@ -39,9 +44,8 @@ class Note(models.Model):
         return self.title
 
     def word_count(self):
-        import re
-        text = re.sub(r'<[^>]+>', ' ', self.content)
-        return len(text.split())
+        # El contenido de una nota es texto plano (textarea), no HTML.
+        return len(self.content.split())
 
 class NoteLink(models.Model):
     from_note = models.ForeignKey(Note, on_delete=models.CASCADE, related_name='outgoing_links')

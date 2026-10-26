@@ -1,10 +1,21 @@
 from pathlib import Path
 import os
 
+from django.core.exceptions import ImproperlyConfigured
+
 BASE_DIR = Path(__file__).resolve().parent.parent
-SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-secret-key-solo-para-local')
-DEBUG = os.environ.get('DEBUG', 'True') == 'True'
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+
+_DEV_SECRET_KEY = 'dev-secret-key-solo-para-local'
+SECRET_KEY = os.environ.get('SECRET_KEY', _DEV_SECRET_KEY)
+DEBUG = os.environ.get('DEBUG', 'True').strip().lower() in ('1', 'true', 'yes', 'on')
+if not DEBUG and SECRET_KEY == _DEV_SECRET_KEY:
+    raise ImproperlyConfigured(
+        'Define SECRET_KEY en el entorno (.env) cuando DEBUG=False: '
+        'la clave de desarrollo es pública.'
+    )
+
+ALLOWED_HOSTS = [h.strip() for h in os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',') if h.strip()]
+CSRF_TRUSTED_ORIGINS = [o.strip() for o in os.environ.get('CSRF_TRUSTED_ORIGINS', '').split(',') if o.strip()]
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -55,16 +66,25 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'main.wsgi.application'
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME':     os.environ.get('POSTGRES_DB',       'writara'),
-        'USER':     os.environ.get('POSTGRES_USER',     'writara'),
-        'PASSWORD': os.environ.get('POSTGRES_PASSWORD', 'writara'),
-        'HOST':     os.environ.get('POSTGRES_HOST',     'localhost'),
-        'PORT':     os.environ.get('POSTGRES_PORT',     '5432'),
+# Con POSTGRES_HOST definido (docker-compose) usa PostgreSQL; sin él, SQLite local.
+if os.environ.get('POSTGRES_HOST'):
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME':     os.environ.get('POSTGRES_DB',       'writara'),
+            'USER':     os.environ.get('POSTGRES_USER',     'writara'),
+            'PASSWORD': os.environ.get('POSTGRES_PASSWORD', 'writara'),
+            'HOST':     os.environ['POSTGRES_HOST'],
+            'PORT':     os.environ.get('POSTGRES_PORT',     '5432'),
+        }
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 AUTH_USER_MODEL = 'accounts.User'
 LOGIN_URL = '/accounts/login/'
 LOGIN_REDIRECT_URL = '/editor/'
@@ -79,4 +99,8 @@ LANGUAGE_CODE = 'es'
 TIME_ZONE = 'Europe/Madrid'
 USE_I18N = True
 USE_TZ = True
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
+# STATICFILES_STORAGE se eliminó en Django 5.1; ahora se configura con STORAGES.
+STORAGES = {
+    'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+    'staticfiles': {'BACKEND': 'whitenoise.storage.CompressedStaticFilesStorage'},
+}

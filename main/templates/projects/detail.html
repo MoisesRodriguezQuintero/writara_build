@@ -326,7 +326,7 @@
       div.style.cssText = 'display:flex;align-items:center;gap:12px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;';
       div.innerHTML = `
         <span style="color:var(--text-3);font-family:var(--font-mono);font-size:0.78rem;min-width:22px;text-align:right">${idx}</span>
-        <div style="flex:1"><div style="font-weight:500;font-size:0.9rem">${data.title}</div>
+        <div style="flex:1"><div style="font-weight:500;font-size:0.9rem">${escapeHtml(data.title)}</div>
         <div style="font-size:0.73rem;color:var(--text-3)">0 palabras · recién creada</div></div>
         <a href="/projects/${PROJECT_ID}/sections/${data.id}/" class="btn btn--ghost btn--sm">Editar →</a>`;
       list.appendChild(div);
@@ -363,11 +363,11 @@
       div.style.cssText = 'background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);padding:14px;';
       div.innerHTML = `
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:4px">
-          <div><span style="font-weight:500">${data.name}</span>
-          <span class="tag" style="margin-left:6px;font-size:0.68rem">${data.role_display}</span></div>
+          <div><span style="font-weight:500">${escapeHtml(data.name)}</span>
+          <span class="tag" style="margin-left:6px;font-size:0.68rem">${escapeHtml(data.role_display)}</span></div>
           <button onclick="deleteCharacter(${data.id})" style="background:none;border:none;color:var(--text-3);cursor:pointer;font-size:0.75rem;padding:2px 4px" title="Eliminar">✕</button>
         </div>
-        ${data.description ? `<div style="font-size:0.83rem;color:var(--text-2);line-height:1.5">${data.description}</div>` : ''}`;
+        ${data.description ? `<div style="font-size:0.83rem;color:var(--text-2);line-height:1.5">${escapeHtml(data.description)}</div>` : ''}`;
       list.appendChild(div);
       // Actualizar lista de personajes disponibles en la timeline
       if (!ALL_CHARACTERS.find(c => c.id === data.id)) {
@@ -416,10 +416,10 @@
       div.style.cssText = 'background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);padding:14px;';
       div.innerHTML = `
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:4px">
-          <span style="font-weight:500">${data.name}</span>
+          <span style="font-weight:500">${escapeHtml(data.name)}</span>
           <button onclick="deletePlace(${data.id})" style="background:none;border:none;color:var(--text-3);cursor:pointer;font-size:0.75rem;padding:2px 4px" title="Eliminar">✕</button>
         </div>
-        ${data.description ? `<div style="font-size:0.83rem;color:var(--text-2);line-height:1.5">${data.description}</div>` : ''}`;
+        ${data.description ? `<div style="font-size:0.83rem;color:var(--text-2);line-height:1.5">${escapeHtml(data.description)}</div>` : ''}`;
       list.appendChild(div);
       // Actualizar lista de lugares disponibles en la timeline
       if (!ALL_PLACES.find(p => p.id === data.id)) {
@@ -467,7 +467,7 @@
     const titleStyle = data.status === 'done' ? 'text-decoration:line-through' : '';
     div.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px">
-        <span style="${titleStyle}">${data.title}</span>
+        <span style="${titleStyle}">${escapeHtml(data.title)}</span>
         <div style="display:flex;gap:4px;flex-shrink:0">
           ${data.status === 'todo' ? `<button onclick="moveTask(${data.id},'doing')" style="background:none;border:none;color:var(--text-3);cursor:pointer;font-size:0.72rem;padding:0 2px" title="→ En progreso">▶</button>` : ''}
           ${data.status === 'doing' ? `<button onclick="moveTask(${data.id},'done')" style="background:none;border:none;color:var(--text-3);cursor:pointer;font-size:0.72rem;padding:0 2px" title="→ Hecho">✓</button><button onclick="moveTask(${data.id},'todo')" style="background:none;border:none;color:var(--text-3);cursor:pointer;font-size:0.72rem;padding:0 2px">◀</button>` : ''}

@@ -1,6 +1,8 @@
 from django.conf import settings
 from django.db import models
 
+from main.utils import count_words
+
 class Document(models.Model):
     STATUS_CHOICES = [
         ('draft', 'Borrador'), ('review', 'Revisando'),
@@ -23,9 +25,7 @@ class Document(models.Model):
         return self.title
 
     def word_count(self):
-        import re
-        text = re.sub(r'<[^>]+>', ' ', self.content)
-        return len(text.split())
+        return count_words(self.content)
 
 class DocumentVersion(models.Model):
     document = models.ForeignKey(Document, on_delete=models.CASCADE, related_name='versions')

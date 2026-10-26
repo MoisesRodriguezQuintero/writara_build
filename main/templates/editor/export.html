@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+{% load sanitize %}<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
@@ -20,6 +20,6 @@
   <div class="doc-meta">
     {{ doc.updated_at|date:"d \d\e F \d\e Y" }} · {{ doc.word_count }} palabras
   </div>
-  {{ doc.content|safe }}
+  {{ doc.content|safe_html }}
 </body>
 </html>

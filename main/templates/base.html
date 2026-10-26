@@ -221,6 +221,12 @@ function quickCapture() {
   }
 }
 
+function escapeHtml(value) {
+  const d = document.createElement('div');
+  d.textContent = value == null ? '' : String(value);
+  return d.innerHTML;
+}
+
 function getCookie(name) {
   const v = document.cookie.split('; ').find(r => r.startsWith(name+'='));
   return v ? v.split('=')[1] : '';

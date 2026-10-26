@@ -25,9 +25,11 @@
 
 {% block extra_js %}
 <script src="https://d3js.org/d3.v7.min.js"></script>
+{{ nodes|json_script:"graph-nodes" }}
+{{ edges|json_script:"graph-edges" }}
 <script>
-const NODES = {{ nodes_json|safe }};
-const EDGES = {{ edges_json|safe }};
+const NODES = JSON.parse(document.getElementById('graph-nodes').textContent);
+const EDGES = JSON.parse(document.getElementById('graph-edges').textContent);
 
 if (NODES.length > 0) {
   const container = document.getElementById('graph');

@@ -29,7 +29,7 @@ def palette_search(request):
     q = request.GET.get('q', '').strip()
     results = []
     if q and len(q) >= 1:
-        docs = Document.objects.filter(owner=request.user, title__icontains=q)[:5]
+        docs = Document.objects.filter(owner=request.user, is_archived=False, title__icontains=q)[:5]
         notes = Note.objects.filter(owner=request.user, title__icontains=q)[:5]
         for d in docs:
             results.append({'type': 'doc', 'title': d.title, 'url': f'/editor/{d.pk}/', 'icon': '📄'})
