@@ -1,9 +1,20 @@
-from io import BytesIO
+from functools import lru_cache
 from html.parser import HTMLParser
+from io import BytesIO
+from pathlib import Path
 
 from django.template.loader import render_to_string
 
 from main.utils import clean_html, html_to_text
+from .pagesizes import get_page, mm
+
+PAGINATION_JS = Path(__file__).resolve().parents[2] / 'static' / 'js' / 'pagination.js'
+PX_TO_MM = 25.4 / 96
+
+
+@lru_cache(maxsize=1)
+def _pagination_js():
+    return PAGINATION_JS.read_text(encoding='utf-8')
 
 
 def _blocked_url_fetcher(url, *args, **kwargs):
@@ -17,13 +28,31 @@ def _blocked_url_fetcher(url, *args, **kwargs):
 
 
 class DocumentExporter:
-    def __init__(self, doc):
+    def __init__(self, doc, prefs=None):
         self.doc = doc
         # Todo el HTML de usuario se sanea antes de exportarlo
         self.content = clean_html(doc.content)
+        # Página y tipografía: las mismas que ve el usuario en el editor
+        self.page = get_page(doc.page_size)
+        self.font_px = getattr(prefs, 'editor_font_size', None) or 17
+        self.spacing_px = getattr(prefs, 'paragraph_spacing', None)
+        self.spacing_px = 10 if self.spacing_px is None else self.spacing_px
+        self.indent_px = getattr(prefs, 'text_indent', None) or 0
 
     def to_html(self):
-        return render_to_string('editor/export.html', {'doc': self.doc})
+        page = self.page
+        return render_to_string('editor/export.html', {
+            'doc': self.doc,
+            # Texto ya formateado: la localización (es) pondría coma decimal en el CSS
+            'page': {'key': page['key'], 'label': page['label'],
+                     'w_mm': mm(page['w']), 'h_mm': mm(page['h']),
+                     'margin_mm': mm(page['margin'])},
+            'page_geometry': {'w': page['w'], 'h': page['h'], 'margin': page['margin']},
+            'font_px': self.font_px,
+            'spacing_px': self.spacing_px,
+            'indent_px': self.indent_px,
+            'pagination_js': _pagination_js(),
+        })
 
     def to_markdown(self):
         try:
@@ -46,33 +75,75 @@ class DocumentExporter:
 
     def to_odt(self) -> bytes:
         from odf.opendocument import OpenDocumentText
-        from odf.style import Style, TextProperties, ParagraphProperties
-        from odf.text import H, P, Span, LineBreak
+        from odf.style import (
+            Style, TextProperties, ParagraphProperties, PageLayout,
+            PageLayoutProperties, MasterPage, Footer, FooterStyle,
+            HeaderFooterProperties,
+        )
+        from odf.text import H, P, Span, LineBreak, PageNumber
 
         doc_odt = OpenDocumentText()
 
-        for level, size in ((1, '18pt'), (2, '14pt'), (3, '12pt')):
+        # ── Página: tamaño, márgenes y número de página en el pie ────────────
+        page = self.page
+        footer_mm = 6   # el pie ocupa parte del margen inferior (el área útil no cambia)
+        layout = PageLayout(name="PageLayout1")
+        layout.addElement(PageLayoutProperties(
+            pagewidth=f"{mm(page['w'])}mm", pageheight=f"{mm(page['h'])}mm",
+            printorientation="portrait",
+            margintop=f"{mm(page['margin'])}mm",
+            marginbottom=f"{mm(page['margin'] - footer_mm)}mm",
+            marginleft=f"{mm(page['margin'])}mm", marginright=f"{mm(page['margin'])}mm",
+        ))
+        footer_style = FooterStyle()
+        footer_style.addElement(HeaderFooterProperties(minheight=f"{footer_mm}mm", margintop="0mm"))
+        layout.addElement(footer_style)
+        doc_odt.automaticstyles.addElement(layout)
+
+        master = MasterPage(name="Standard", pagelayoutname=layout)
+        footer = Footer()
+        footer_p = P(stylename="Footer")
+        footer_p.addElement(PageNumber(selectpage="current"))
+        footer.addElement(footer_p)
+        master.addElement(footer)
+        doc_odt.masterstyles.addElement(master)
+
+        footer_par = Style(name="Footer", family="paragraph")
+        footer_par.addElement(ParagraphProperties(textalign="center"))
+        footer_par.addElement(TextProperties(fontsize="9pt", color="#888888"))
+        doc_odt.styles.addElement(footer_par)
+
+        # ── Tipografía: la misma que en el editor ─────────────────────────────
+        base_pt = self.font_px * 0.75
+        spacing_mm = mm(round(self.spacing_px * PX_TO_MM, 2))
+        indent_mm = mm(round(self.indent_px * PX_TO_MM, 2))
+
+        for level, factor in ((1, 1.7), (2, 1.35), (3, 1.1)):
             style = Style(name=f"Heading{level}", family="paragraph")
-            style.addElement(TextProperties(fontsize=size, fontweight="bold"))
+            style.addElement(TextProperties(fontsize=f"{base_pt * factor:.1f}pt", fontweight="bold"))
+            style.addElement(ParagraphProperties(
+                margintop=f"{base_pt * factor * 0.35:.1f}pt", marginbottom="6pt", keepwithnext="always"))
             doc_odt.styles.addElement(style)
 
         body_style = Style(name="Body", family="paragraph")
-        body_style.addElement(TextProperties(fontsize="11pt"))
-        body_style.addElement(ParagraphProperties(lineheight="180%"))
+        body_style.addElement(TextProperties(fontsize=f"{base_pt:.1f}pt"))
+        body_style.addElement(ParagraphProperties(
+            lineheight="185%", marginbottom=f"{spacing_mm}mm", textindent=f"{indent_mm}mm"))
         doc_odt.styles.addElement(body_style)
 
         quote_style = Style(name="Quote", family="paragraph")
-        quote_style.addElement(TextProperties(fontsize="11pt", fontstyle="italic"))
-        quote_style.addElement(ParagraphProperties(marginleft="1cm", lineheight="180%"))
+        quote_style.addElement(TextProperties(fontsize=f"{base_pt:.1f}pt", fontstyle="italic"))
+        quote_style.addElement(ParagraphProperties(
+            marginleft="1cm", lineheight="185%", marginbottom=f"{spacing_mm}mm"))
         doc_odt.styles.addElement(quote_style)
 
         code_style = Style(name="Code", family="paragraph")
-        code_style.addElement(TextProperties(fontsize="10pt", fontfamily="Courier New"))
+        code_style.addElement(TextProperties(fontsize=f"{base_pt * 0.85:.1f}pt", fontfamily="Courier New"))
         doc_odt.styles.addElement(code_style)
 
         list_style = Style(name="ListItem", family="paragraph")
-        list_style.addElement(TextProperties(fontsize="11pt"))
-        list_style.addElement(ParagraphProperties(marginleft="0.8cm", lineheight="160%"))
+        list_style.addElement(TextProperties(fontsize=f"{base_pt:.1f}pt"))
+        list_style.addElement(ParagraphProperties(marginleft="0.8cm", lineheight="170%"))
         doc_odt.styles.addElement(list_style)
 
         title_p = H(outlinelevel=1, stylename="Heading1")

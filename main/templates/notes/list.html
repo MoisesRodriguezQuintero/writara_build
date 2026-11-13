@@ -20,7 +20,7 @@
     <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
       <a href="/notes/" class="tag {% if not tag_filter %}tag--accent{% endif %}">Todas</a>
       {% for tag in tags %}
-      <a href="/notes/?tag={{ tag.name }}" class="tag {% if tag_filter == tag.name %}tag--accent{% endif %}">{{ tag.name }}</a>
+      <a href="/notes/?tag={{ tag.name|urlencode }}" class="tag {% if tag_filter == tag.name %}tag--accent{% endif %}">{{ tag.name }}</a>
       {% endfor %}
     </div>
   </div>
@@ -32,8 +32,8 @@
       {% for note in inbox %}
       <a href="/notes/{{ note.slug }}/edit/" class="card">
         <div class="card__title">{{ note.title }}</div>
-        <div class="card__preview">{{ note.content|striptags|truncatechars:80 }}</div>
-        <div class="card__meta"><span>{{ note.created_at|timesince }} ago</span></div>
+        <div class="card__preview">{{ note.content|truncatechars:80 }}</div>
+        <div class="card__meta"><span>hace {{ note.created_at|timesince }}</span></div>
       </a>
       {% endfor %}
     </div>
@@ -46,7 +46,7 @@
     <a href="/notes/{{ note.slug }}/" class="card">
       <div class="card__title">{{ note.title }}</div>
       {% if note.content %}
-      <div class="card__preview">{{ note.content|striptags|truncatechars:100 }}</div>
+      <div class="card__preview">{{ note.content|truncatechars:100 }}</div>
       {% endif %}
       <div class="card__footer">
         <div style="display:flex;gap:4px;flex-wrap:wrap">

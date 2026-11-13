@@ -9,9 +9,14 @@ from django.utils.text import slugify
 WIKI_RE = re.compile(r'\[\[([^\[\]\n]+)\]\]')
 
 
+# Rutas fijas de /notes/<slug>/: una nota con este slug sería inaccesible
+RESERVED_SLUGS = {'new', 'graph', 'quick', 'autocomplete'}
+
+
 def title_to_slug(title):
     """Mismo criterio para crear el slug de una nota y para resolver [[enlaces]]."""
-    return slugify(title)[:200] or 'nota'
+    slug = slugify(title)[:200] or 'nota'
+    return f'{slug}-nota' if slug in RESERVED_SLUGS else slug
 
 
 def resolve_note(user, title):
@@ -59,3 +64,13 @@ def sync_links(note):
     NoteLink.objects.bulk_create(
         [NoteLink(from_note=note, to_note=t) for t in targets.values()]
     )
+
+
+def sync_incoming(note, *titles):
+    """Re-sincroniza los enlaces de las notas que mencionan alguno de `titles`:
+    así un [[enlace]] escrito antes de que existiera la nota destino (o antes de
+    renombrarla) se conecta/desconecta sin tener que volver a guardar la nota origen."""
+    from .models import Note
+    for title in {t.strip() for t in titles if t and t.strip()}:
+        for other in Note.objects.filter(owner=note.owner, content__icontains=title).exclude(pk=note.pk):
+            sync_links(other)

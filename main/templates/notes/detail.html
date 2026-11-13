@@ -71,7 +71,7 @@
         <div class="section-title">Tags</div>
         <div style="display:flex;flex-wrap:wrap;gap:6px">
           {% for tag in related %}
-          <a href="/notes/?tag={{ tag.name }}" class="tag tag--accent">{{ tag.name }}</a>
+          <a href="/notes/?tag={{ tag.name|urlencode }}" class="tag tag--accent">{{ tag.name }}</a>
           {% endfor %}
         </div>
       </div>

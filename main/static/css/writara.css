@@ -286,8 +286,8 @@ input, textarea, select { font-family: inherit; }
   background: var(--bg-2) !important; border: none !important;
   border-bottom: 1px solid var(--border) !important; padding: 6px 12px !important;
 }
-.ql-container.ql-snow { border: none !important; background: var(--bg) !important; font-family: var(--font-serif) !important; font-size: 17px !important; }
-.ql-editor { max-width: var(--editor-max); margin: 0 auto; padding: 48px 40px !important; color: var(--text) !important; line-height: 1.85 !important; min-height: calc(100vh - 200px) !important; }
+.ql-container.ql-snow { border: none !important; background: var(--bg) !important; font-family: var(--font-serif) !important; font-size: var(--editor-font-size, 17px) !important; }
+.ql-editor { color: var(--text) !important; line-height: 1.85 !important; }
 .ql-editor.ql-blank::before { color: var(--text-3) !important; font-style: italic !important; }
 .ql-snow .ql-stroke { stroke: var(--text-2) !important; }
 .ql-snow .ql-fill { fill: var(--text-2) !important; }
@@ -301,9 +301,29 @@ input, textarea, select { font-family: inherit; }
 .ql-editor code { background: var(--bg-3); padding: 1px 5px; border-radius: 3px; font-family: var(--font-mono); font-size: 0.9em; }
 .ql-editor pre { background: var(--bg-3); padding: 1em; border-radius: var(--radius); font-family: var(--font-mono); font-size: 0.85em; overflow-x: auto; }
 .ql-editor p {margin-bottom: var(--editor-paragraph-spacing, 10px) !important; text-indent: var(--editor-text-indent, 0px);}
-}.editor-width--narrow .ql-editor { max-width: 560px; }
-.editor-width--medium .ql-editor { max-width: 720px; }
-.editor-width--wide .ql-editor { max-width: 940px; }
+
+/* ── Editor paginado ──────────────────────────────
+   La hoja mide lo que indica el selector de tamaño de página (A3, A4, A5…); su
+   ancho, el margen y la altura los fija static/js/pagination.js (medidas reales
+   en mm → px) y aquí se dibujan las hojas y el hueco entre ellas. */
+:root[data-theme="dark"]  { --page-sheet: #1a1918; --page-desk: #0d0d0c; --page-edge: #3a3835; }
+:root[data-theme="light"] { --page-sheet: #fffefb; --page-desk: #e4e0d6; --page-edge: #cfc9bb; }
+
+#editor-quill { position: relative; padding-bottom: 56px; }
+#editor-quill.ql-container.ql-snow { background: var(--page-desk, var(--bg)) !important; }
+#editor-quill .ql-editor {
+  position: relative; box-sizing: border-box;
+  max-width: none !important; margin: 24px 0 0 20px;
+  padding: var(--page-margin, 48px) !important;
+  min-height: var(--page-h, 800px) !important;
+  height: auto !important; overflow: visible !important; overflow-wrap: break-word;
+  background-color: transparent;
+  background-image: repeating-linear-gradient(to bottom,
+    var(--page-sheet) 0, var(--page-sheet) calc(var(--page-h, 800px) - 1px),
+    var(--page-edge) calc(var(--page-h, 800px) - 1px), var(--page-edge) var(--page-h, 800px),
+    transparent var(--page-h, 800px), transparent calc(var(--page-h, 800px) + var(--page-gap, 28px)));
+}
+#editor-quill .ql-editor.ql-blank::before { left: var(--page-margin, 48px) !important; right: var(--page-margin, 48px) !important; }
 
 /* Note editor (plain) */
 .note-editor-textarea {

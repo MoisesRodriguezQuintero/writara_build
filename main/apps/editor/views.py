@@ -11,6 +11,7 @@ from main.apps.accounts.models import UserPreferences
 from main.utils import clean_html, json_body, short_text
 from .exporters import DocumentExporter
 from .models import Document, DocumentVersion
+from .pagesizes import PAGE_SIZES, get_page, page_options
 
 SNAPSHOT_EVERY = timedelta(minutes=30)
 
@@ -52,6 +53,8 @@ def document_edit(request, pk):
     return render(request, 'editor/editor.html', {
         'doc': doc, 'prefs': prefs, 'versions': versions,
         'word_count': doc.word_count(),
+        'page_options': page_options(),
+        'page': get_page(doc.page_size),
     })
 
 @login_required
@@ -64,6 +67,8 @@ def autosave(request, pk):
         if not isinstance(data['content'], str):
             return JsonResponse({'error': 'content debe ser texto'}, status=400)
         doc.content = clean_html(data['content'])
+    if data.get('page_size') in PAGE_SIZES:
+        doc.page_size = data['page_size']
     doc.save()
     # Instantánea de versión: la primera con contenido y después como mucho una
     # cada 30 minutos, y solo si el contenido cambió.
@@ -80,6 +85,7 @@ def autosave(request, pk):
     return JsonResponse({
         'saved_at': timezone.localtime(doc.updated_at).strftime('%H:%M:%S'),
         'word_count': doc.word_count(),
+        'page_size': doc.page_size,
     })
 
 @login_required
@@ -116,7 +122,7 @@ def document_export(request, pk, fmt):
     if fmt not in EXPORT_FORMATS:
         raise Http404('Formato de exportación desconocido')
     doc = get_object_or_404(Document, pk=pk, owner=request.user)
-    exp = DocumentExporter(doc)
+    exp = DocumentExporter(doc, prefs=get_prefs(request.user))
     builders = {
         'markdown': exp.to_markdown,
         'html': exp.to_html,

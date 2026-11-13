@@ -25,6 +25,13 @@
               style="{% if doc.is_favorite %}color:var(--accent){% endif %}">{% if doc.is_favorite %}★{% else %}☆{% endif %}</button>
       <a href="/analysis/{{ doc.pk }}/" class="btn btn--ghost btn--icon btn--sm" title="Análisis">📊</a>
 
+      <!-- Tamaño de página -->
+      <select id="page-size-select" class="form-input form-select" title="Tamaño de página"
+              onchange="changePageSize(this.value)"
+              style="width:auto;padding:4px 28px 4px 10px;font-size:0.78rem">
+        {% for opt in page_options %}<option value="{{ opt.key }}"{% if opt.key == doc.page_size %} selected{% endif %}>{{ opt.text }}</option>{% endfor %}
+      </select>
+
       <!-- Export -->
       <div style="position:relative" id="export-menu">
         <button class="btn btn--ghost btn--sm" onclick="toggleExport()">Exportar ▾</button>
@@ -45,7 +52,7 @@
   <div class="editor-body">
     <div id="editor-quill"></div>
     <div style="background:var(--bg-2);border-top:1px solid var(--border);padding:5px 20px;display:flex;justify-content:space-between;font-size:0.73rem;color:var(--text-3)">
-      <span><span id="wc">0</span> palabras · <span id="rt">0</span> min lectura</span>
+      <span><span id="wc">0</span> palabras · <span id="rt">0</span> min lectura · Página <span id="pg-cur">1</span> / <span id="pg-total">1</span></span>
       <span>{{ doc.get_status_display }}</span>
     </div>
   </div>
@@ -154,15 +161,20 @@
 {% endblock %}
 
 {% block extra_js %}
+{{ page_options|json_script:"page-options-data" }}
+<script src="/static/js/pagination.js"></script>
 <script>
 const DOC_ID = {{ doc.pk }};
 let quill, dirty = false, focusMode = false, isFav = {{ doc.is_favorite|yesno:"true,false" }};
 let autosaveInterval = {{ prefs.autosave_interval|default:30 }} * 1000;
 let debounceTimer, saveTimer;
+let pageKey = '{{ doc.page_size|escapejs }}';
+let pageGeom = null, pageScale = 1, pageCount = 1, paginateTimer = null;
 
 // ── Init ────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
   initQuill();
+  initPagination();
   saveTimer = setInterval(() => { if (dirty) saveDoc(); }, autosaveInterval);
 
   // Close export on outside click
@@ -211,9 +223,90 @@ function initQuill() {
     markDirty();
     updateStats();
     updateTOC();
+    schedulePaginate();
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(saveDoc, 3000);
   });
+}
+
+// ── Paginación ───────────────────────────────────
+// Las hojas se calculan con static/js/pagination.js. El HTML que se guarda nunca
+// incluye los empujes de la maquetación (el servidor tampoco los admite).
+const PAGE_OPTIONS = JSON.parse(document.getElementById('page-options-data').textContent);
+
+function pageSpec(key) {
+  return PAGE_OPTIONS.find(p => p.key === key) || PAGE_OPTIONS.find(p => p.key === 'A5');
+}
+
+function paginate() {
+  if (!quill || !window.WritaraPages) return;
+  pageGeom = WritaraPages.geometry(pageSpec(pageKey));
+  pageCount = WritaraPages.layout(quill.root, pageGeom).pages;
+  fitPage();
+  updatePageIndicator();
+}
+
+function schedulePaginate(delay = 120) {
+  clearTimeout(paginateTimer);
+  paginateTimer = setTimeout(paginate, delay);
+}
+
+function fitPage() {
+  if (!pageGeom) return;
+  const cont = document.getElementById('editor-quill');
+  pageScale = WritaraPages.fit(quill.root, cont.clientWidth, pageGeom, 20);
+}
+
+function updatePageIndicator() {
+  if (!pageGeom || !quill) return;
+  const cont = document.getElementById('editor-quill');
+  let y = null;
+  const sel = window.getSelection();
+  if (quill.hasFocus() && sel && sel.anchorNode && quill.root.contains(sel.anchorNode)) {
+    // Página donde está el cursor
+    let el = sel.anchorNode.nodeType === 1 ? sel.anchorNode : sel.anchorNode.parentElement;
+    const li = el && el.closest('li');
+    if (li) el = li;
+    else while (el && el.parentElement && el.parentElement !== quill.root) el = el.parentElement;
+    if (el && el !== quill.root) y = el.offsetTop;
+  }
+  if (y === null) {
+    // Sin cursor: página que se ve en el tercio superior de la pantalla
+    y = (cont.scrollTop + cont.clientHeight * 0.35 - quill.root.offsetTop) / pageScale;
+  }
+  const cur = Math.min(pageCount, WritaraPages.pageAtY(y, pageGeom));
+  document.getElementById('pg-cur').textContent = cur;
+  document.getElementById('pg-total').textContent = pageCount;
+}
+
+function initPagination() {
+  paginate();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(paginate);
+  const cont = document.getElementById('editor-quill');
+  if (window.ResizeObserver) new ResizeObserver(() => { fitPage(); updatePageIndicator(); }).observe(cont);
+  window.addEventListener('resize', fitPage);
+  cont.addEventListener('scroll', updatePageIndicator, { passive: true });
+  document.addEventListener('selectionchange', updatePageIndicator);
+}
+
+function changePageSize(key) {
+  pageKey = key;
+  paginate();
+  markDirty();
+  saveDoc();
+  const opt = pageSpec(key);
+  showToast(`Página ${opt.label} · ${pageCount} ${pageCount === 1 ? 'página' : 'páginas'}`);
+}
+
+// HTML del editor sin los empujes de paginación
+function editorHTML() {
+  const clone = quill.root.cloneNode(true);
+  clone.querySelectorAll('[data-pg]').forEach(el => {
+    el.removeAttribute('data-pg');
+    el.style.removeProperty('margin-top');
+    if (!el.getAttribute('style')) el.removeAttribute('style');
+  });
+  return clone.innerHTML;
 }
 
 // ── Stats ────────────────────────────────────────
@@ -261,13 +354,13 @@ function markDirty() {
 async function saveDoc() {
   if (!quill) return;
   const title = document.getElementById('doc-title-input').value.trim() || 'Sin título';
-  const content = quill.root.innerHTML;
+  const content = editorHTML();
   document.getElementById('save-status').textContent = 'Guardando…';
   try {
     const r = await fetch(`/editor/${DOC_ID}/autosave/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
-      body: JSON.stringify({ title, content })
+      body: JSON.stringify({ title, content, page_size: pageKey })
     });
     const data = await r.json();
     dirty = false;
@@ -355,17 +448,20 @@ function applyTypographyPrefs() {
   const indent  = {{ prefs.text_indent|default:0 }};
   document.documentElement.style.setProperty('--editor-paragraph-spacing', spacing + 'px');
   document.documentElement.style.setProperty('--editor-text-indent', indent + 'px');
+  document.documentElement.style.setProperty('--editor-font-size', {{ prefs.editor_font_size|default:17 }} + 'px');
 }
 
 function updateSpacing(val) {
   document.getElementById('spacing-val').textContent = val + 'px';
   document.documentElement.style.setProperty('--editor-paragraph-spacing', val + 'px');
+  schedulePaginate(30);
   saveTypographyPrefs();
 }
 
 function updateIndent(val) {
   document.getElementById('indent-val').textContent = val + 'px';
   document.documentElement.style.setProperty('--editor-text-indent', val + 'px');
+  schedulePaginate(30);
   saveTypographyPrefs();
 }
 

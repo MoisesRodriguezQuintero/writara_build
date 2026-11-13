@@ -2,24 +2,99 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ doc.title }}</title>
   <style>
-    body { font-family: Georgia, serif; max-width: 720px; margin: 60px auto; line-height: 1.8; color: #1a1816; font-size: 17px; }
-    h1 { font-size: 2em; margin: 1.2em 0 0.5em; }
-    h2 { font-size: 1.4em; margin: 1.1em 0 0.4em; }
-    h3 { font-size: 1.15em; margin: 1em 0 0.3em; }
-    blockquote { border-left: 3px solid #8b6f4e; padding-left: 1.2em; color: #555; font-style: italic; }
-    code { background: #f3f0ea; padding: 1px 5px; border-radius: 3px; font-family: monospace; font-size: 0.9em; }
-    pre { background: #f3f0ea; padding: 1em; border-radius: 8px; overflow-x: auto; }
-    .doc-title { font-size: 2.2em; font-weight: 600; margin-bottom: 0.2em; }
-    .doc-meta { color: #888; font-size: 0.85em; margin-bottom: 2em; border-bottom: 1px solid #e5e2db; padding-bottom: 1em; }
+    /* Página {{ page.label }}: {{ page.w_mm }} × {{ page.h_mm }} mm. Lo usan el PDF, el
+       diálogo de impresión del navegador y la vista en hojas de esta página. */
+    @page {
+      size: {{ page.w_mm }}mm {{ page.h_mm }}mm;
+      margin: {{ page.margin_mm }}mm;
+      @bottom-center { content: counter(page); font-family: Georgia, serif; font-size: 9pt; color: #888; }
+    }
+
+    html { background: #e4e0d6; }
+    body { margin: 0; padding: 24px 0 40px; font-family: Georgia, 'Times New Roman', serif; color: #1a1816; }
+
+    /* La hoja. Sin JavaScript se ve como una sola hoja continua; con JavaScript se
+       divide en páginas del tamaño elegido. */
+    #doc-root {
+      position: relative; box-sizing: border-box;
+      width: {{ page.w_mm }}mm; min-height: {{ page.h_mm }}mm;
+      margin: 0 auto; padding: {{ page.margin_mm }}mm;
+      background: #fff;
+      font-size: {{ font_px }}px; line-height: 1.85;
+      overflow-wrap: break-word;
+    }
+    #doc-root.paged {
+      background-color: transparent;
+      background-image: repeating-linear-gradient(to bottom,
+        #fff 0, #fff calc(var(--page-h) - 1px),
+        #cfc9bb calc(var(--page-h) - 1px), #cfc9bb var(--page-h),
+        transparent var(--page-h), transparent calc(var(--page-h) + var(--page-gap)));
+    }
+
+    #doc-root p { margin: 0 0 {{ spacing_px }}px; text-indent: {{ indent_px }}px; orphans: 3; widows: 3; }
+    #doc-root h1 { font-size: 1.7em; margin: 1.2em 0 0.5em; break-after: avoid; }
+    #doc-root h2 { font-size: 1.35em; margin: 1.1em 0 0.4em; break-after: avoid; }
+    #doc-root h3 { font-size: 1.1em; margin: 1em 0 0.3em; break-after: avoid; }
+    #doc-root ul, #doc-root ol { margin: 0; padding-left: 1.5em; }
+    #doc-root blockquote { margin: 5px 0; border-left: 3px solid #8b6f4e; padding-left: 1em; color: #555; font-style: italic; break-inside: avoid; }
+    #doc-root code { background: #f3f0ea; padding: 1px 5px; border-radius: 3px; font-family: monospace; font-size: 0.9em; }
+    #doc-root pre { margin: 5px 0; background: #f3f0ea; padding: 1em; border-radius: 8px; font-family: monospace; font-size: 0.85em; white-space: pre-wrap; break-inside: avoid; }
+    #doc-root img { max-width: 100%; height: auto; }
+    #doc-root .ql-align-center { text-align: center; }
+    #doc-root .ql-align-right { text-align: right; }
+    #doc-root .ql-align-justify { text-align: justify; }
+    #doc-root .ql-indent-1 { padding-left: 3em; }
+    #doc-root .ql-indent-2 { padding-left: 6em; }
+    #doc-root .ql-indent-3 { padding-left: 9em; }
+    #doc-root .doc-title { font-size: 2.2em; font-weight: 600; margin: 0 0 0.2em; text-indent: 0; }
+    #doc-root .doc-meta { color: #888; font-size: 0.85em; margin-bottom: 2em; border-bottom: 1px solid #e5e2db; padding-bottom: 1em; text-indent: 0; }
+
+    @media print {
+      html { background: none; }
+      body { padding: 0; }
+      #doc-root, #doc-root.paged {
+        width: auto !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important;
+        background: none !important; transform: none !important;
+      }
+      #doc-root { font-size: {{ font_px }}px; }
+    }
   </style>
 </head>
 <body>
-  <h1 class="doc-title">{{ doc.title }}</h1>
-  <div class="doc-meta">
-    {{ doc.updated_at|date:"d \d\e F \d\e Y" }} · {{ doc.word_count }} palabras
-  </div>
-  {{ doc.content|safe_html }}
+  <main id="doc-root">
+    <h1 class="doc-title">{{ doc.title }}</h1>
+    <div class="doc-meta">
+      {{ doc.updated_at|date:"d \d\e F \d\e Y" }} · {{ doc.word_count }} palabras
+    </div>
+    {{ doc.content|safe_html }}
+  </main>
+
+  {{ page_geometry|json_script:"page-geometry" }}
+  <script>{{ pagination_js|safe }}</script>
+  <script>
+    (function () {
+      var root = document.getElementById('doc-root');
+      if (!root || !window.WritaraPages) return;
+      var g = WritaraPages.geometry(JSON.parse(document.getElementById('page-geometry').textContent));
+      function paginate() {
+        root.classList.add('paged');
+        WritaraPages.layout(root, g);
+        WritaraPages.fit(root, document.documentElement.clientWidth, g);
+      }
+      paginate();
+      if (document.fonts && document.fonts.ready) document.fonts.ready.then(paginate);
+      window.addEventListener('resize', function () {
+        WritaraPages.fit(root, document.documentElement.clientWidth, g);
+      });
+      // Al imprimir, el navegador pagina con @page: se retiran los empujes de la vista en hojas
+      window.addEventListener('beforeprint', function () {
+        WritaraPages.clear(root); root.classList.remove('paged');
+      });
+      window.addEventListener('afterprint', paginate);
+    })();
+  </script>
 </body>
 </html>

@@ -122,10 +122,19 @@ python manage.py migrate
 python manage.py runserver
 ```
 
+## Páginas
+
+El editor muestra el documento en hojas del tamaño elegido en el selector de la barra superior
+(A3, A4, **A5 por defecto**, A6, B5, Carta, Legal). El tamaño se guarda por documento y lo usan
+las exportaciones: PDF y HTML (`@page`, con número de página) y ODT (diseño de página con número en el
+pie). Markdown y texto plano no tienen páginas. La paginación del editor es visual
+(`main/static/js/pagination.js`); el reparto definitivo lo hacen WeasyPrint / LibreOffice.
+
 ## Tests
 
 ```bash
 python manage.py test main
+node tests_js/pagination.test.js   # algoritmo de paginación (también lo lanza la suite si hay Node)
 ```
 
 Cubren saneado de HTML, exportadores (MD/HTML/TXT/ODT/PDF), enlaces wiki, etiquetas por usuario, proyectos, análisis de texto y registro/perfil.

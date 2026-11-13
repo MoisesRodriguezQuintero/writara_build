@@ -2,6 +2,7 @@ from django.conf import settings
 from django.db import models
 
 from main.utils import count_words
+from .pagesizes import DEFAULT_PAGE_SIZE, PAGE_SIZE_CHOICES
 
 class Document(models.Model):
     STATUS_CHOICES = [
@@ -13,6 +14,10 @@ class Document(models.Model):
     content = models.TextField(blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
     word_goal = models.IntegerField(null=True, blank=True)
+    page_size = models.CharField(
+        'Tamaño de página', max_length=10,
+        choices=PAGE_SIZE_CHOICES, default=DEFAULT_PAGE_SIZE,
+    )
     is_favorite = models.BooleanField(default=False)
     is_archived = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)

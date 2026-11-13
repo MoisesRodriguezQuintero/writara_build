@@ -1,11 +1,10 @@
-import json
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from django.db.models import Q
 from .models import Note, Tag, NoteLink
-from .utils import parse_wiki_links, sync_links
+from .utils import parse_wiki_links, resolve_note, sync_incoming, sync_links
 from main.apps.accounts.models import UserPreferences
 from main.utils import json_body, short_text
 
@@ -15,7 +14,7 @@ def get_prefs(user):
 
 @login_required
 def note_list(request):
-    notes = Note.objects.filter(owner=request.user, is_inbox=False)
+    notes = Note.objects.filter(owner=request.user, is_inbox=False).prefetch_related('tags')
     tag_filter = request.GET.get('tag')
     search_q = request.GET.get('q', '')
     if tag_filter:
@@ -45,8 +44,16 @@ def note_detail(request, slug):
 
 @login_required
 def note_create(request):
-    title = short_text(request.GET.get('title'), 'Nueva nota')
+    raw_title = (request.GET.get('title') or '').strip()
+    title = short_text(raw_title, 'Nueva nota')
+    if raw_title:
+        # Venimos de un [[enlace]] a una nota nueva: si ya existe, no se duplica
+        existing = resolve_note(request.user, title)
+        if existing:
+            return redirect('notes:edit', existing.slug)
     note = Note.objects.create(owner=request.user, title=title)
+    if raw_title:
+        sync_incoming(note, title)
     return redirect('notes:edit', note.slug)
 
 @login_required
@@ -64,6 +71,7 @@ def note_edit(request, slug):
 def note_save(request, slug):
     note = get_object_or_404(Note, slug=slug, owner=request.user)
     data = json_body(request)
+    old_title = note.title
     note.title = short_text(data.get('title', note.title), 'Sin título')
     content = data.get('content', note.content)
     note.content = content if isinstance(content, str) else note.content
@@ -74,9 +82,12 @@ def note_save(request, slug):
         name = str(name).strip()[:50]
         if name and name not in tag_names:
             tag_names.append(name)
+    note.is_inbox = False   # una nota de inbox editada ya está procesada
     note.save()
     note.tags.set([Tag.objects.get_or_create(owner=request.user, name=n)[0] for n in tag_names[:30]])
     sync_links(note)
+    if note.title != old_title:
+        sync_incoming(note, old_title, note.title)
     return JsonResponse({'saved_at': note.updated_at.strftime('%H:%M:%S'), 'slug': note.slug})
 
 @login_required
@@ -91,7 +102,10 @@ def note_graph(request):
     notes = Note.objects.filter(owner=request.user, is_inbox=False)
     links = NoteLink.objects.filter(from_note__owner=request.user)
     nodes = [{'id': n.pk, 'label': n.title, 'slug': n.slug} for n in notes]
-    edges = [{'source': l.from_note_id, 'target': l.to_note_id} for l in links]
+    ids = {n['id'] for n in nodes}
+    # d3 falla si una arista apunta a un nodo que no está (p. ej. una nota de inbox)
+    edges = [{'source': l.from_note_id, 'target': l.to_note_id} for l in links
+             if l.from_note_id in ids and l.to_note_id in ids]
     prefs = get_prefs(request.user)
     return render(request, 'notes/graph.html', {
         'nodes': nodes, 'edges': edges,

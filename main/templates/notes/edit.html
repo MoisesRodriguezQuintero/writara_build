@@ -20,46 +20,54 @@
     <a href="/notes/{{ note.slug }}/" class="btn btn--ghost btn--sm">Ver</a>
   </div>
 
-  <textarea id="note-content" style="flex:1;background:var(--bg);border:none;font-family:var(--font-serif);font-size:{{ prefs.editor_font_size|default:17 }}px;line-height:1.85;color:var(--text);padding:48px 40px;resize:none;max-width:720px;margin:0 auto;display:block;width:100%" placeholder="Escribe aquí… Usa [[nombre de nota]] para enlazar notas.">{{ note.content }}</textarea>
+  <textarea id="note-content" style="flex:1;background:var(--bg);border:none;font-family:var(--font-serif);font-size:{{ prefs.editor_font_size|default:17 }}px;line-height:1.85;color:var(--text);padding:48px 40px;resize:none;max-width:720px;margin:0 auto;display:block;width:100%" placeholder="Escribe aquí… Usa [[nombre de nota]] para enlazar notas.">
+{{ note.content }}</textarea>
 </div>
 {% endblock %}
 
 {% block extra_js %}
-<script>
 {{ note_tags|json_script:"note-tags-data" }}
+<script>
 const NOTE_SLUG = '{{ note.slug|escapejs }}';
-let tags = JSON.parse(document.getElementById('note-tags-data').textContent);
-let saveDebounce;
+let tags = [];
+try { tags = JSON.parse(document.getElementById('note-tags-data').textContent); }
+catch (e) { console.error('No se pudieron leer las etiquetas de la nota:', e); }   // el guardado debe seguir funcionando
+let dirty = false, saving = false, saveDebounce;
 renderTags();
 
-document.getElementById('note-content').addEventListener('input', () => {
+function markDirty() {
+  dirty = true;
   document.getElementById('note-status').textContent = 'Sin guardar…';
+}
+
+function scheduleSave() {
+  markDirty();
   clearTimeout(saveDebounce);
   saveDebounce = setTimeout(saveNote, 3000);
-});
+}
 
-document.getElementById('note-title').addEventListener('input', () => {
-  document.getElementById('note-status').textContent = 'Sin guardar…';
-});
+document.getElementById('note-content').addEventListener('input', scheduleSave);
+document.getElementById('note-title').addEventListener('input', scheduleSave);
 
 function addTagFromInput() {
   const inp = document.getElementById('tag-input');
-  const t = inp.value.trim().replace(',','');
-  if (t && !tags.includes(t)) {
-    tags.push(t);
-    renderTags();
-  }
+  inp.value.split(',').map(t => t.trim().slice(0, 50)).filter(Boolean).forEach(t => {
+    if (!tags.includes(t) && tags.length < 30) tags.push(t);
+  });
   inp.value = '';
+  renderTags();
+  scheduleSave();
 }
 
 function removeTag(name) {
   tags = tags.filter(t => t !== name);
   renderTags();
+  scheduleSave();
 }
 
 function renderTags() {
   const cont = document.getElementById('tags-display');
-  // Remove existing tag spans (not the input)
+  // Quitar las etiquetas pintadas (no el input)
   cont.querySelectorAll('.tag').forEach(el => el.remove());
   const inp = document.getElementById('tag-input');
   tags.forEach(t => {
@@ -72,7 +80,8 @@ function renderTags() {
   });
 }
 
-async function saveNote() {
+async function saveNote(opts = {}) {
+  clearTimeout(saveDebounce);
   const title = document.getElementById('note-title').value || 'Sin título';
   const content = document.getElementById('note-content').value;
   document.getElementById('note-status').textContent = 'Guardando…';
@@ -80,16 +89,52 @@ async function saveNote() {
     const r = await fetch(`/notes/${NOTE_SLUG}/save/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
-      body: JSON.stringify({ title, content, tags })
+      body: JSON.stringify({ title, content, tags }),
+      keepalive: !!opts.keepalive
     });
+    if (r.redirected) throw new Error('SESSION');          // sesión caducada: Django redirige al login
+    if (!r.ok) throw new Error('HTTP ' + r.status);
     const data = await r.json();
+    dirty = false;
     document.getElementById('note-status').textContent = `Guardado ${data.saved_at}`;
-    showToast('Nota guardada');
-  } catch(e) {
-    document.getElementById('note-status').textContent = 'Error al guardar';
+    if (!opts.keepalive) showToast('Nota guardada');
+  } catch (e) {
+    const msg = String(e.message || '');
+    document.getElementById('note-status').textContent =
+      msg === 'SESSION' ? 'Sesión caducada: recarga la página e inicia sesión' :
+      msg.startsWith('HTTP ') ? `Error al guardar (${msg.slice(5)})` : 'Error al guardar';
+    console.error('Error al guardar la nota:', e);
   }
 }
 
-function noteEditor() { return {}; }
+// Guardado de salida
+let savingOnLeave = false;
+function saveBeforeLeaving() {
+  if (!dirty || savingOnLeave) return;           // pagehide y visibilitychange llegan juntos: una sola petición
+  savingOnLeave = true;
+  saveNote({ keepalive: true }).finally(() => { savingOnLeave = false; });
+}
+// Al seguir un enlace con cambios pendientes se guarda PRIMERO y se navega después: así la
+// página siguiente (p. ej. «Ver») ya muestra el texto nuevo y no el anterior.
+document.addEventListener('click', async e => {
+  const a = e.target.closest && e.target.closest('a[href]');
+  if (!a || !dirty || e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
+  if (a.target && a.target !== '_self') return;
+  const href = a.getAttribute('href');
+  if (!href || href.startsWith('#') || href.startsWith('javascript:')) return;
+  e.preventDefault();
+  await saveNote();
+  if (!dirty || confirm('No se pudo guardar la nota. ¿Salir igualmente y perder los cambios?')) {
+    window.location.href = a.href;
+  }
+}, true);
+// Red de seguridad para lo demás (cerrar pestaña, botón Atrás, recargar)
+window.addEventListener('pagehide', saveBeforeLeaving);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') saveBeforeLeaving();
+});
+
+// Ctrl+S (lo captura Alpine en la barra superior)
+function noteEditor() { return { save() { saveNote(); } }; }
 </script>
 {% endblock %}
