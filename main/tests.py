@@ -14,7 +14,7 @@ from main.apps.editor.exporters import DocumentExporter, _blocked_url_fetcher
 from main.apps.editor.models import Document, DocumentVersion
 from main.apps.notes.models import Note, NoteLink, Tag
 from main.apps.notes.utils import parse_wiki_links
-from main.apps.projects.models import Project, Task
+from main.apps.projects.models import GENERAL_PROJECT_NAME, Project, Task, general_project_for
 from main.utils import clean_html, count_words
 
 
@@ -160,15 +160,15 @@ class NotesTests(TestCase):
         self.client.force_login(self.u)
 
     def test_wiki_links_escape_html_and_encode_urls(self):
-        out = parse_wiki_links('hola <img src=x onerror=alert(1)> [[A "b" & <i>]]', self.u)
+        out = parse_wiki_links('hola <img src=x onerror=alert(1)> [[A "b" & <i>]]', general_project_for(self.u))
         self.assertNotIn('<img', out)
         self.assertNotIn('<i>', out)
         self.assertIn('wiki-link--new', out)
-        self.assertIn('title=A+%22b%22+%26+%3Ci%3E', out)
+        self.assertIn('title=A+%22b%22+%26+%3Ci%3E&amp;project=', out)
 
     def test_wiki_link_resolves_accented_titles_and_paragraphs(self):
         target = Note.objects.create(owner=self.u, title='Ñandú')
-        out = parse_wiki_links('uno\n\ndos [[Ñandú]]\ntres', self.u)
+        out = parse_wiki_links('uno\n\ndos [[Ñandú]]\ntres', general_project_for(self.u))
         self.assertIn(f'href="/notes/{target.slug}/"', out)
         self.assertEqual(out.count('<p>'), 2)
         self.assertIn('<br>', out)
@@ -540,3 +540,234 @@ class NoteRegressionTests(TestCase):
         self.assertEqual(self.client.get(f'/notes/{mine.slug}/').status_code, 404)
         self.assertEqual(self.save(mine, content='hack').status_code, 404)
         self.assertNotIn('privada', self.client.get('/notes/graph/').content.decode())
+
+
+# ── Notas dentro de proyectos ────────────────────────────────────────────────
+class NotesInProjectsTests(TestCase):
+    def setUp(self):
+        self.u = User.objects.create_user('bob', password='x')
+        self.eve = User.objects.create_user('eve', password='x')
+        self.client.force_login(self.u)
+        self.novela = Project.objects.create(owner=self.u, name='Novela')
+        self.ensayo = Project.objects.create(owner=self.u, name='Ensayo')
+
+    def save(self, note, **data):
+        data.setdefault('title', note.title)
+        data.setdefault('content', note.content)
+        data.setdefault('tags', [])
+        return self.client.post(f'/notes/{note.slug}/save/', data=data, content_type='application/json')
+
+    # -- estructura -------------------------------------------------------
+    def test_note_without_project_goes_to_the_general_project(self):
+        note = Note.objects.create(owner=self.u, title='suelta')
+        general = Project.objects.get(owner=self.u, is_general=True)
+        self.assertEqual(note.project, general)
+        self.assertEqual(general.name, GENERAL_PROJECT_NAME)
+        Note.objects.create(owner=self.u, title='otra')
+        self.assertEqual(Project.objects.filter(owner=self.u, is_general=True).count(), 1)
+
+    def test_general_project_cannot_be_deleted_but_normal_projects_cascade_to_notes(self):
+        general = general_project_for(self.u)
+        self.assertEqual(self.client.post(f'/projects/{general.pk}/delete/').status_code, 302)
+        self.assertTrue(Project.objects.filter(pk=general.pk).exists())
+        Note.objects.create(owner=self.u, project=self.novela, title='n')
+        self.client.post(f'/projects/{self.novela.pk}/delete/')
+        self.assertFalse(Note.objects.filter(title='n').exists())
+
+    def test_notes_are_not_an_external_sidebar_tab_anymore(self):
+        body = self.client.get('/projects/').content.decode()
+        self.assertNotIn('href="/notes/"', body)
+        self.assertNotIn('href="/notes/graph/"', body)
+        self.assertIn('Notas generales', body)
+        self.assertIn('>General<', body)
+
+    # -- pestaña de notas del proyecto -----------------------------------
+    def test_project_page_has_a_notes_tab_with_notes_and_inbox(self):
+        Note.objects.create(owner=self.u, project=self.novela, title='Idea de trama', content='texto')
+        Note.objects.create(owner=self.u, project=self.novela, title='capturada', is_inbox=True)
+        Note.objects.create(owner=self.u, project=self.ensayo, title='de otro proyecto')
+        body = self.client.get(f'/projects/{self.novela.pk}/').content.decode()
+        self.assertIn('data-tab="notes"', body)
+        self.assertIn('id="tab-notes"', body)
+        self.assertIn('Idea de trama', body)
+        self.assertIn('capturada', body)
+        self.assertNotIn('de otro proyecto', body)
+        self.assertIn(f'/notes/new/?project={self.novela.pk}', body)
+        self.assertIn(f'/notes/graph/?project={self.novela.pk}', body)
+
+    def test_project_list_shows_note_counts(self):
+        Note.objects.create(owner=self.u, project=self.novela, title='a')
+        Note.objects.create(owner=self.u, project=self.novela, title='b')
+        body = self.client.get('/projects/').content.decode()
+        self.assertRegex(body, r'2 notas')
+
+    # -- crear / mover -----------------------------------------------------
+    def test_new_note_is_created_in_the_given_project(self):
+        self.client.get(f'/notes/new/?project={self.novela.pk}')
+        self.assertEqual(Note.objects.get().project, self.novela)
+
+    def test_cannot_create_a_note_in_someone_elses_project(self):
+        theirs = Project.objects.create(owner=self.eve, name='Privado')
+        self.client.get(f'/notes/new/?project={theirs.pk}')
+        note = Note.objects.get()
+        self.assertEqual(note.project, general_project_for(self.u))
+        self.assertEqual(Note.objects.filter(project=theirs).count(), 0)
+
+    def test_moving_a_note_changes_its_project_and_cuts_foreign_links(self):
+        alfa = Note.objects.create(owner=self.u, project=self.novela, title='Alfa', content='ver [[Beta]]')
+        beta = Note.objects.create(owner=self.u, project=self.novela, title='Beta')
+        self.save(alfa)
+        self.assertEqual(NoteLink.objects.count(), 1)
+        response = self.save(beta, project=self.ensayo.pk)
+        self.assertEqual(response.json()['project']['id'], self.ensayo.pk)
+        beta.refresh_from_db()
+        self.assertEqual(beta.project, self.ensayo)
+        self.assertEqual(NoteLink.objects.count(), 0)            # Alfa ya no ve a Beta
+        self.save(beta, project=self.novela.pk)                  # al volver, se reconecta
+        self.assertEqual(NoteLink.objects.count(), 1)
+
+    def test_cannot_move_a_note_to_someone_elses_project(self):
+        theirs = Project.objects.create(owner=self.eve, name='Privado')
+        note = Note.objects.create(owner=self.u, project=self.novela, title='mía')
+        self.save(note, project=theirs.pk)
+        note.refresh_from_db()
+        self.assertEqual(note.project, self.novela)
+
+    # -- enlaces y grafo por proyecto ------------------------------------
+    def test_wiki_links_only_connect_notes_of_the_same_project(self):
+        alfa = Note.objects.create(owner=self.u, project=self.novela, title='Alfa', content='ver [[Beta]]')
+        Note.objects.create(owner=self.u, project=self.ensayo, title='Beta')
+        self.save(alfa)
+        self.assertEqual(NoteLink.objects.count(), 0)
+        self.assertIn('wiki-link--new', self.client.get(f'/notes/{alfa.slug}/').content.decode())
+
+    def test_new_note_link_creates_the_note_in_the_same_project(self):
+        alfa = Note.objects.create(owner=self.u, project=self.novela, title='Alfa', content='ver [[Gamma]]')
+        html = self.client.get(f'/notes/{alfa.slug}/').content.decode()
+        self.assertIn(f'project={self.novela.pk}', html)
+        self.client.get(f'/notes/new/?title=Gamma&project={self.novela.pk}')
+        gamma = Note.objects.get(title='Gamma')
+        self.assertEqual(gamma.project, self.novela)
+        self.assertEqual(NoteLink.objects.get().from_note, alfa)  # el enlace pendiente se conecta
+
+    def test_graph_can_be_limited_to_a_project(self):
+        Note.objects.create(owner=self.u, project=self.novela, title='En novela')
+        Note.objects.create(owner=self.u, project=self.ensayo, title='En ensayo')
+        scoped = self.client.get(f'/notes/graph/?project={self.novela.pk}').content.decode()
+        self.assertIn('En novela', scoped)
+        self.assertNotIn('En ensayo', scoped)
+        everything = self.client.get('/notes/graph/').content.decode()
+        self.assertIn('En novela', everything)
+        self.assertIn('En ensayo', everything)
+
+    def test_note_list_can_be_filtered_by_project(self):
+        Note.objects.create(owner=self.u, project=self.novela, title='En novela')
+        Note.objects.create(owner=self.u, project=self.ensayo, title='En ensayo')
+        body = self.client.get(f'/notes/?project={self.novela.pk}').content.decode()
+        self.assertIn('En novela', body)
+        self.assertNotIn('En ensayo', body)
+        self.assertIn('Volver al proyecto', body)
+        everything = self.client.get('/notes/').content.decode()
+        self.assertIn('📁 Ensayo', everything)
+
+    # -- captura rápida, edición, borrado, búsqueda ------------------------
+    def test_quick_capture_goes_to_the_current_project_or_to_general(self):
+        post = lambda **d: self.client.post('/notes/quick/', data=d, content_type='application/json')
+        r = post(content='idea para la novela', project_id=self.novela.pk)
+        self.assertEqual(r.json()['project'], 'Novela')
+        self.assertEqual(Note.objects.get(title='idea para la novela').project, self.novela)
+        post(content='sin proyecto')
+        self.assertEqual(Note.objects.get(title='sin proyecto').project, general_project_for(self.u))
+        theirs = Project.objects.create(owner=self.eve, name='Privado')
+        post(content='intento ajeno', project_id=theirs.pk)
+        self.assertEqual(Note.objects.get(title='intento ajeno').project, general_project_for(self.u))
+
+    def test_edit_page_has_project_selector_and_detail_links_back_to_the_project(self):
+        note = Note.objects.create(owner=self.u, project=self.novela, title='n')
+        edit = self.client.get(f'/notes/{note.slug}/edit/').content.decode()
+        self.assertIn('id="note-project"', edit)
+        self.assertIn(f'<option value="{self.novela.pk}" selected>', edit)
+        self.assertIn(f'window.WRITARA_PROJECT_ID = {self.novela.pk}', edit)
+        detail = self.client.get(f'/notes/{note.slug}/').content.decode()
+        self.assertIn(f'href="/projects/{self.novela.pk}/#notes"', detail)
+
+    def test_deleting_a_note_returns_to_the_projects_notes_tab(self):
+        note = Note.objects.create(owner=self.u, project=self.novela, title='n')
+        response = self.client.post(f'/notes/{note.slug}/delete/')
+        self.assertRedirects(response, f'/projects/{self.novela.pk}/#notes', fetch_redirect_response=False)
+
+    def test_search_shows_the_project_of_each_note(self):
+        Note.objects.create(owner=self.u, project=self.novela, title='Misterio', content='x')
+        body = self.client.get('/search/?q=Misterio').content.decode()
+        self.assertIn('📁 Novela', body)
+        palette = self.client.get('/search/palette/?q=Misterio').json()['results']
+        self.assertEqual(palette[0]['title'], 'Misterio · Novela')
+
+    def test_notes_of_other_users_stay_private_with_projects(self):
+        mine = Note.objects.create(owner=self.u, project=self.novela, title='privada')
+        self.client.force_login(self.eve)
+        self.assertEqual(self.client.get(f'/notes/{mine.slug}/').status_code, 404)
+        self.assertEqual(self.client.get(f'/projects/{self.novela.pk}/').status_code, 404)
+        self.assertNotIn('privada', self.client.get(f'/notes/?project={self.novela.pk}').content.decode())
+
+
+# ── Conversor propio HTML → Markdown (sustituye a html2text, GPL) ─────────────
+from main.apps.editor.markdown import html_to_markdown
+
+
+class MarkdownConverterTests(TestCase):
+    def md(self, html):
+        return html_to_markdown(html)
+
+    def test_headings_paragraphs_and_inline_formats(self):
+        self.assertEqual(
+            self.md('<h1>Capítulo 1</h1><p>Hola <strong>mundo</strong> y <em>cursiva</em> y <s>tachado</s>.</p><h2>Sub</h2>'),
+            '# Capítulo 1\n\nHola **mundo** y *cursiva* y ~~tachado~~.\n\n## Sub\n')
+
+    def test_spaces_inside_markers_are_moved_outside(self):
+        self.assertEqual(self.md('<p>Es <strong>muy </strong>importante y <em> así</em></p>'),
+                         'Es **muy** importante y *así*\n')
+
+    def test_lists_nested_and_numbered(self):
+        self.assertEqual(self.md('<ul><li>uno</li><li>dos <strong>b</strong></li></ul><ol><li>a</li><li>b</li></ol>'),
+                         '- uno\n- dos **b**\n\n1. a\n2. b\n')
+        self.assertEqual(self.md('<ul><li>uno</li><li class="ql-indent-1">anidado</li></ul>'),
+                         '- uno\n    - anidado\n')
+
+    def test_quote_code_block_and_inline_code(self):
+        self.assertEqual(
+            self.md('<blockquote>una cita</blockquote><pre class="ql-syntax">x = 1\nprint(x)</pre><p>con <code>código</code></p>'),
+            '> una cita\n\n```\nx = 1\nprint(x)\n```\n\ncon `código`\n')
+
+    def test_links_images_and_embedded_images(self):
+        self.assertEqual(self.md('<p><a href="https://ej.com" target="_blank">sitio</a> <img src="https://ej.com/a.png" alt="logo"></p>'),
+                         '[sitio](https://ej.com) ![logo](https://ej.com/a.png)\n')
+        self.assertIn('(imagen incrustada)', self.md('<p><img src="data:image/png;base64,AAAA"></p>'))
+
+    def test_markdown_syntax_in_text_is_escaped_and_entities_decoded(self):
+        self.assertEqual(self.md('<p>a&nbsp;b &amp; c &lt;d&gt; 5 * 3 = 15, _x_ #no 1. no</p>'),
+                         'a b & c <d> 5 \\* 3 = 15, \\_x\\_ #no 1. no\n')
+        self.assertEqual(self.md('<p>* no es lista</p><p># no es título</p><p>1. no es lista</p>'),
+                         '\\* no es lista\n\n\\# no es título\n\n1\\. no es lista\n')
+
+    def test_line_breaks_empty_paragraphs_and_scripts(self):
+        self.assertEqual(self.md('<p>línea<br>otra línea</p><p><br></p><p>fin</p>'), 'línea  \notra línea\n\nfin\n')
+        self.assertEqual(self.md('<p>ok</p><script>alert(1)</script>'), 'ok\n')
+        self.assertEqual(self.md(''), '')
+        self.assertEqual(self.md(None), '')
+
+    def test_loose_text_and_unclosed_tags_do_not_crash(self):
+        self.assertEqual(self.md('texto suelto <strong>negrita'), 'texto suelto **negrita**\n')
+        self.assertEqual(self.md('<p>uno<p>dos'), 'uno\n\ndos\n')
+
+    def test_markdown_export_uses_the_converter_and_includes_the_title(self):
+        user = User.objects.create_user('md', password='x')
+        self.client.force_login(user)
+        doc = Document.objects.create(owner=user, title='Libro', content='<h2>Cap</h2><p>con <strong>negrita</strong></p>')
+        body = self.client.get(f'/editor/{doc.pk}/export/markdown/').content.decode()
+        self.assertEqual(body, '# Libro\n\n## Cap\n\ncon **negrita**\n')
+
+    def test_html2text_is_no_longer_a_dependency(self):
+        root = Path(__file__).resolve().parents[1]
+        self.assertNotIn('html2text', (root / 'requirements.txt').read_text())
+        self.assertNotIn('html2text', (root / 'main/apps/editor/exporters.py').read_text())

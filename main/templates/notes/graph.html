@@ -4,7 +4,11 @@
 {% block content %}
 <div class="page page--wide fade-in">
   <div class="flex items-center justify-between mb-4">
-    <h1 class="page-title" style="margin-bottom:0">Grafo de conocimiento</h1>
+    <div>
+      <h1 class="page-title" style="margin-bottom:0">Grafo de notas{% if project %} · {{ project.name }}{% endif %}</h1>
+      {% if project %}<a href="/projects/{{ project.pk }}/#notes" style="color:var(--text-3);font-size:0.82rem">← Volver al proyecto</a>
+      {% else %}<span style="color:var(--text-3);font-size:0.82rem">Todos tus proyectos (los enlaces [[…]] solo conectan notas del mismo proyecto)</span>{% endif %}
+    </div>
     <div style="font-size:0.83rem;color:var(--text-3)">
       Haz click en un nodo para abrir la nota · Arrastra para reorganizar
     </div>
@@ -31,7 +35,12 @@
 const NODES = JSON.parse(document.getElementById('graph-nodes').textContent);
 const EDGES = JSON.parse(document.getElementById('graph-edges').textContent);
 
-if (NODES.length > 0) {
+if (NODES.length > 0 && typeof d3 === 'undefined') {
+  document.getElementById('graph').innerHTML =
+    '<div class="empty-state"><span class="empty-state__icon">◎</span>' +
+    '<div class="empty-state__title">No se pudo cargar el grafo</div>' +
+    '<div class="empty-state__desc">La librería D3 se descarga desde internet. Comprueba la conexión y recarga la página.</div></div>';
+} else if (NODES.length > 0) {
   const container = document.getElementById('graph');
   const W = container.clientWidth, H = container.clientHeight;
   const isDark = document.documentElement.dataset.theme !== 'light';

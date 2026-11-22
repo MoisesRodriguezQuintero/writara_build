@@ -2,7 +2,8 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
-from .models import Project, Section, Character, Place, Task, TimelineEvent
+from django.db.models import Count
+from .models import Project, Section, Character, Place, Task, TimelineEvent, general_project_for
 from main.apps.accounts.models import UserPreferences
 from main.utils import clean_html, count_words, json_body, short_text, valid_color
 
@@ -23,7 +24,11 @@ def get_prefs(user):
 
 @login_required
 def project_list(request):
-    projects = Project.objects.filter(owner=request.user)
+    general_project_for(request.user)   # «Notas generales» siempre disponible
+    projects = (Project.objects.filter(owner=request.user)
+                .annotate(note_count=Count('notes', distinct=True),
+                          section_count=Count('sections', distinct=True))
+                .order_by('-is_general', '-updated_at'))
     prefs = get_prefs(request.user)
     return render(request, 'projects/list.html', {'projects': projects, 'prefs': prefs, 'active': 'projects'})
 
@@ -50,11 +55,13 @@ def project_detail(request, pk):
     prefs = get_prefs(request.user)
     total_words = sum(s.word_count for s in sections)
     events = project.events.all().prefetch_related('characters', 'places')
+    notes = project.notes.filter(is_inbox=False).prefetch_related('tags')
+    inbox_notes = project.notes.filter(is_inbox=True)
     return render(request, 'projects/detail.html', {
         'project': project, 'sections': sections, 'characters': characters,
         'places': places, 'tasks': tasks, 'total_words': total_words,
         'prefs': prefs, 'active': 'projects',
-        'events': events,
+        'events': events, 'notes': notes, 'inbox_notes': inbox_notes,
     })
 
 @login_required
@@ -106,6 +113,8 @@ def task_move(request, pk, tid):
 @require_POST
 def project_delete(request, pk):
     project = get_object_or_404(Project, pk=pk, owner=request.user)
+    if project.is_general:       # «Notas generales» no se puede eliminar
+        return redirect('projects:detail', pk)
     project.delete()
     return redirect('projects:list')
 

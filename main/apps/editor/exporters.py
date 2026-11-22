@@ -6,6 +6,7 @@ from pathlib import Path
 from django.template.loader import render_to_string
 
 from main.utils import clean_html, html_to_text
+from .markdown import html_to_markdown
 from .pagesizes import get_page, mm
 
 PAGINATION_JS = Path(__file__).resolve().parents[2] / 'static' / 'js' / 'pagination.js'
@@ -55,14 +56,7 @@ class DocumentExporter:
         })
 
     def to_markdown(self):
-        try:
-            import html2text
-            h = html2text.HTML2Text()
-            h.ignore_links = False
-            h.body_width = 0
-            return f"# {self.doc.title}\n\n" + h.handle(self.content)
-        except ImportError:
-            return f"# {self.doc.title}\n\n{html_to_text(self.content).strip()}"
+        return f"# {self.doc.title}\n\n" + html_to_markdown(self.content)
 
     def to_text(self):
         return html_to_text(self.content).strip() + '\n'

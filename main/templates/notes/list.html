@@ -4,10 +4,17 @@
 {% block content %}
 <div class="page fade-in">
   <div class="flex items-center justify-between mb-6">
-    <h1 class="page-title" style="margin-bottom:0">Notas</h1>
+    <div>
+      <h1 class="page-title" style="margin-bottom:0">Notas{% if project %} · {{ project.name }}{% endif %}</h1>
+      {% if project %}
+      <a href="/projects/{{ project.pk }}/#notes" style="color:var(--text-3);font-size:0.82rem">← Volver al proyecto</a>
+      {% else %}
+      <span style="color:var(--text-3);font-size:0.82rem">Búsqueda en las notas de todos tus proyectos</span>
+      {% endif %}
+    </div>
     <div style="display:flex;gap:8px">
-      <a href="/notes/graph/" class="btn btn--ghost btn--sm">◎ Grafo</a>
-      <a href="/notes/new/" class="btn btn--primary">+ Nueva</a>
+      <a href="/notes/graph/{% if project %}?project={{ project.pk }}{% endif %}" class="btn btn--ghost btn--sm">◎ Grafo</a>
+      <a href="/notes/new/{% if project %}?project={{ project.pk }}{% endif %}" class="btn btn--primary">+ Nueva</a>
     </div>
   </div>
 
@@ -16,11 +23,12 @@
     <form method="get" style="flex:1;min-width:200px">
       <input type="text" name="q" value="{{ search_q }}" class="form-input" placeholder="Buscar en notas…" style="max-width:320px">
       {% if tag_filter %}<input type="hidden" name="tag" value="{{ tag_filter }}">{% endif %}
+      {% if project %}<input type="hidden" name="project" value="{{ project.pk }}">{% endif %}
     </form>
     <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-      <a href="/notes/" class="tag {% if not tag_filter %}tag--accent{% endif %}">Todas</a>
+      <a href="/notes/{% if project %}?project={{ project.pk }}{% endif %}" class="tag {% if not tag_filter %}tag--accent{% endif %}">Todas</a>
       {% for tag in tags %}
-      <a href="/notes/?tag={{ tag.name|urlencode }}" class="tag {% if tag_filter == tag.name %}tag--accent{% endif %}">{{ tag.name }}</a>
+      <a href="/notes/?tag={{ tag.name|urlencode }}{% if project %}&project={{ project.pk }}{% endif %}" class="tag {% if tag_filter == tag.name %}tag--accent{% endif %}">{{ tag.name }}</a>
       {% endfor %}
     </div>
   </div>
@@ -33,7 +41,7 @@
       <a href="/notes/{{ note.slug }}/edit/" class="card">
         <div class="card__title">{{ note.title }}</div>
         <div class="card__preview">{{ note.content|truncatechars:80 }}</div>
-        <div class="card__meta"><span>hace {{ note.created_at|timesince }}</span></div>
+        <div class="card__meta"><span>hace {{ note.created_at|timesince }}</span>{% if not project %}<span>📁 {{ note.project.name }}</span>{% endif %}</div>
       </a>
       {% endfor %}
     </div>
@@ -54,7 +62,7 @@
           <span class="tag">{{ tag.name }}</span>
           {% endfor %}
         </div>
-        <span class="text-xs text-muted">{{ note.updated_at|date:"d M" }}</span>
+        <span class="text-xs text-muted">{% if not project %}📁 {{ note.project.name }} · {% endif %}{{ note.updated_at|date:"d M" }}</span>
       </div>
     </a>
     {% endfor %}
@@ -65,7 +73,7 @@
     <div class="empty-state__title">{% if search_q %}Sin resultados{% else %}Sin notas todavía{% endif %}</div>
     <div class="empty-state__desc">{% if search_q %}Prueba otro término de búsqueda.{% else %}Crea tu primera nota de conocimiento.{% endif %}</div>
     {% if not search_q %}
-    <a href="/notes/new/" class="btn btn--primary" style="margin-top:20px">Crear nota</a>
+    <a href="/notes/new/{% if project %}?project={{ project.pk }}{% endif %}" class="btn btn--primary" style="margin-top:20px">Crear nota</a>
     {% endif %}
   </div>
   {% endif %}

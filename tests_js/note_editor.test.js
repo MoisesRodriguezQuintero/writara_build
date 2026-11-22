@@ -17,6 +17,7 @@ const make = (id, extra = {}) => Object.assign({
 const els = {
   'tags-display': make('tags-display'), 'tag-input': make('tag-input'), 'note-status': make('note-status'),
   'note-content': make('note-content', { value: 'texto de la nota' }), 'note-title': make('note-title', { value: 'Mi nota' }),
+  'note-project': make('note-project', { value: '7', selectedOptions: [{ textContent: '📁 Novela' }] }),
   'note-tags-data': make('note-tags-data', { textContent: JSON.parse(JSON.stringify(tagsJson)) }),
 };
 const docListeners = {}, winListeners = {}, fetches = [], toasts = [];
@@ -24,7 +25,7 @@ const ctx = {
   document: { getElementById: id => els[id], createElement: () => make('span'), visibilityState: 'visible',
               addEventListener(t, f) { (docListeners[t] = docListeners[t] || []).push(f); } },
   window: { addEventListener(t, f) { (winListeners[t] = winListeners[t] || []).push(f); } },
-  fetch: async (url, opt) => { fetches.push({ url, opt }); return { ok: true, json: async () => ({ saved_at: '12:00:00' }) }; },
+  fetch: async (url, opt) => { fetches.push({ url, opt }); return { ok: true, json: async () => ({ saved_at: '12:00:00', project: { id: 7, name: 'Novela', url: '/projects/7/#notes' } }) }; },
   getCookie: () => 'tok', showToast: m => toasts.push(m), console, setTimeout, clearTimeout, JSON,
 };
 vm.createContext(ctx);
@@ -48,6 +49,7 @@ assert.strictEqual(els['note-status'].textContent, 'Sin guardar…');
   assert.ok(sent.url.endsWith('/save/') && sent.opt.method === 'POST');
   assert.strictEqual(sent.opt.headers['X-CSRFToken'], 'tok');
   const body = JSON.parse(sent.opt.body);
+  assert.strictEqual(body.project, 7, 'el guardado debe enviar el proyecto');
   assert.strictEqual(body.title, 'Mi nota'); assert.strictEqual(body.content, 'texto de la nota');
   assert.deepStrictEqual(body.tags.sort(), ['</script>x', 'a', "o'brien", 'b', 'c'].sort());
   assert.ok(els['note-status'].textContent.startsWith('Guardado 12:00:00'));

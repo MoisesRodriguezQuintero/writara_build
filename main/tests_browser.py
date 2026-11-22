@@ -23,7 +23,8 @@ except ImportError:                                   # pragma: no cover
 
 
 @unittest.skipUnless(sync_playwright, 'Playwright no instalado')
-class NoteEditorBrowserTests(StaticLiveServerTestCase):
+class BrowserTestBase(StaticLiveServerTestCase):
+    """Navegador compartido, usuario con sesión iniciada y utilidades."""
 
     @classmethod
     def setUpClass(cls):
@@ -64,6 +65,11 @@ class NoteEditorBrowserTests(StaticLiveServerTestCase):
 
     def status(self):
         return self.page.inner_text('#note-status')
+
+
+
+@unittest.skipUnless(sync_playwright, 'Playwright no instalado')
+class NoteEditorBrowserTests(BrowserTestBase):
 
     def test_autosave_saves_after_typing(self):
         note = Note.objects.create(owner=self.user, title='Mi nota', content='inicial')
@@ -107,11 +113,11 @@ class NoteEditorBrowserTests(StaticLiveServerTestCase):
     def test_following_any_link_with_pending_changes_saves_first(self):
         note = Note.objects.create(owner=self.user, title='Mi nota', content='x')
         self.open_editor(note)
-        self.page.fill('#note-content', 'cambio antes de ir al grafo')
-        self.page.click('.sidebar a:has-text("Grafo")')
-        self.page.wait_for_url(re.compile(r'/notes/graph/$'))
+        self.page.fill('#note-content', 'cambio antes de ir a proyectos')
+        self.page.click('.sidebar a:has-text("Proyectos")')
+        self.page.wait_for_url(re.compile(r'/projects/$'))
         note.refresh_from_db()
-        self.assertEqual(note.content, 'cambio antes de ir al grafo')
+        self.assertEqual(note.content, 'cambio antes de ir a proyectos')
 
     def test_new_note_flow_from_the_list(self):
         self.page.goto(f'{self.live_server_url}/notes/')
@@ -133,3 +139,56 @@ class NoteEditorBrowserTests(StaticLiveServerTestCase):
         self.page.click('button:has-text("Guardar")')
         self.page.wait_for_function("document.getElementById('note-status').textContent.startsWith('Error')")
         self.assertIn('404', self.status())
+
+
+@unittest.skipUnless(sync_playwright, 'Playwright no instalado')
+class NotesInProjectBrowserTests(BrowserTestBase):
+    """La pestaña «Notas» del proyecto y el flujo crear → editar → mover, en navegador real."""
+
+    def setUp(self):
+        super().setUp()
+        from main.apps.projects.models import Project
+        self.novela = Project.objects.create(owner=self.user, name='Novela')
+        self.ensayo = Project.objects.create(owner=self.user, name='Ensayo')
+
+    def visible_tabs(self):
+        return self.page.evaluate("[...document.querySelectorAll('.tab-content')]"
+                                  ".filter(e => e.style.display !== 'none').map(e => e.id)")
+
+    def test_url_hash_opens_the_notes_tab(self):
+        Note.objects.create(owner=self.user, project=self.novela, title='Idea de trama')
+        self.page.goto(f'{self.live_server_url}/projects/{self.novela.pk}/#notes')
+        self.page.wait_for_load_state()
+        self.assertEqual(self.errors, [])
+        self.assertEqual(self.visible_tabs(), ['tab-notes'])
+        self.assertTrue(self.page.is_visible('text=Idea de trama'))
+        self.page.click('button[data-tab="tasks"]')
+        self.assertEqual(self.visible_tabs(), ['tab-tasks'])
+        self.assertTrue(self.page.url.endswith('#tasks'))
+
+    def test_create_note_from_the_project_edit_and_move_it(self):
+        self.page.goto(f'{self.live_server_url}/projects/{self.novela.pk}/')
+        self.page.click('button[data-tab="notes"]')
+        self.page.click('a:has-text("+ Nueva nota")')
+        self.page.wait_for_url(re.compile(r'/notes/.+/edit/$'))
+        self.assertEqual(self.errors, [])
+        self.assertEqual(self.page.evaluate('window.WRITARA_PROJECT_ID'), self.novela.pk)
+        self.page.fill('#note-title', 'Apunte')
+        self.page.fill('#note-content', 'texto del apunte')
+        self.page.click('button:has-text("Guardar")')
+        self.page.wait_for_function("document.getElementById('note-status').textContent.startsWith('Guardado ')")
+        note = Note.objects.get(title='Apunte')
+        self.assertEqual(note.project, self.novela)
+        # mover a otro proyecto desde el selector
+        self.page.select_option('#note-project', str(self.ensayo.pk))
+        self.page.wait_for_function("document.getElementById('note-status').textContent.startsWith('Guardado ')")
+        note.refresh_from_db()
+        self.assertEqual(note.project, self.ensayo)
+        self.assertEqual(self.page.evaluate('window.WRITARA_PROJECT_ID'), self.ensayo.pk)
+
+    def test_back_from_a_note_returns_to_the_notes_tab(self):
+        note = Note.objects.create(owner=self.user, project=self.novela, title='Apunte', content='x')
+        self.page.goto(f'{self.live_server_url}/notes/{note.slug}/')
+        self.page.click('a:has-text("← Novela")')
+        self.page.wait_for_url(re.compile(rf'/projects/{self.novela.pk}/#notes$'))
+        self.assertEqual(self.visible_tabs(), ['tab-notes'])

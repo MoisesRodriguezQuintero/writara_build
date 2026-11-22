@@ -40,10 +40,10 @@
         {% for note in notes %}
         <a href="/notes/{{ note.slug }}/" style="display:flex;flex-direction:column;gap:4px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;text-decoration:none;transition:border-color 0.15s">
           <div style="font-weight:500;color:var(--text)">{{ note.title }}</div>
-          <div style="font-size:0.83rem;color:var(--text-2)">{{ note.content|striptags|truncatechars:120 }}</div>
+          <div style="font-size:0.83rem;color:var(--text-2)">{{ note.content|truncatechars:120 }}</div>
           <div style="display:flex;gap:6px;margin-top:4px">
             {% for tag in note.tags.all %}<span class="tag">{{ tag.name }}</span>{% endfor %}
-            <span style="font-size:0.75rem;color:var(--text-3)">{{ note.updated_at|timesince }} ago</span>
+            <span style="font-size:0.75rem;color:var(--text-3)">📁 {{ note.project.name }} · hace {{ note.updated_at|timesince }}</span>
           </div>
         </a>
         {% endfor %}

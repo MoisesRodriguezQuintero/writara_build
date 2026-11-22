@@ -1,0 +1,252 @@
+WRITARA EVALUATION LICENSE
+Version 1.0
+
+Copyright (c) 2026 [FULL LEGAL NAME OF THE COPYRIGHT HOLDER] ("Licensor").
+All rights reserved.
+
+"Writara" means the software, source code, documentation and other assets
+contained in this repository (the "Software"). "You" means the person or legal
+entity exercising permissions under this License.
+
+
+1. SOURCE-AVAILABLE, NOT OPEN SOURCE
+
+   The Software is made available so that it can be read and evaluated. It is
+   not open source. Except for the limited permissions granted in Section 2,
+   Licensor reserves all rights in the Software. No other right is granted by
+   implication, estoppel or otherwise.
+
+
+2. PERMITTED USE
+
+   Subject to this License and free of charge, You may:
+
+   (a) read and review the source code;
+
+   (b) download, install and run the Software on your own equipment for
+       personal, educational or internal evaluation purposes, including
+       technical and commercial due diligence by a company or investor that is
+       considering a licence or an acquisition of the Software; and
+
+   (c) make private modifications for the purposes in paragraph (b).
+
+   Evaluation by a legal entity is limited to sixty (60) days from first use,
+   unless Licensor agrees in writing to extend that period.
+
+
+3. RESTRICTIONS
+
+   Without Licensor's prior written permission, You may not:
+
+   (a) use the Software in production or for any commercial purpose, including
+       running a business with it, or offering the Software, or functionality
+       derived from it, to third parties as a service, as a product or as part
+       of a product;
+
+   (b) copy, publish, distribute, sublicense, sell, rent, lend or otherwise make
+       the Software, or any modified version of it, available to anyone else;
+
+   (c) remove or alter copyright notices or this License; or
+
+   (d) use the name "Writara" or the name of Licensor to endorse or promote any
+       product or service. This License does not grant any trademark right.
+
+   Keeping private copies for the purposes in Section 2 does not breach
+   paragraphs (a) or (b).
+
+
+4. OWNERSHIP
+
+   The Software is licensed, not sold. Licensor retains all right, title and
+   interest in the Software, including all intellectual property rights. Any
+   feedback or suggestion You provide may be used by Licensor without
+   obligation or compensation.
+
+
+5. CONTRIBUTIONS
+
+   If You submit a contribution (code, documentation or any other material) to
+   this project, You represent that You have the right to do so and, to the
+   fullest extent permitted by law, You assign to Licensor all rights in it.
+   Where assignment is not possible under applicable law, You grant Licensor a
+   perpetual, worldwide, irrevocable, royalty-free, transferable and
+   sublicensable licence to use, modify, distribute and relicense the
+   contribution under any terms, including proprietary terms. Licensor may
+   require a separate written agreement before accepting a contribution.
+
+
+6. THIRD-PARTY COMPONENTS
+
+   The Software uses third-party components that are licensed under their own
+   terms (see THIRD_PARTY_LICENSES.md). This License does not change or replace
+   those terms, and your rights in those components are governed by them.
+
+
+7. COMMERCIAL LICENCE AND ACQUISITION
+
+   For any use beyond Section 2, or to discuss a commercial licence or the
+   acquisition of the Software, contact: [CONTACT EMAIL].
+
+
+8. TERMINATION
+
+   This License ends automatically if You breach it. On termination You must
+   stop using the Software and delete all copies in your possession. Sections
+   1, 3, 4, 5, 8, 9, 10 and 11 survive termination.
+
+
+9. NO WARRANTY
+
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+   PARTICULAR PURPOSE AND NON-INFRINGEMENT.
+
+
+10. LIMITATION OF LIABILITY
+
+    TO THE MAXIMUM EXTENT PERMITTED BY LAW, LICENSOR SHALL NOT BE LIABLE FOR ANY
+    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN CONTRACT, TORT OR OTHERWISE,
+    ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR ITS USE.
+
+
+11. GENERAL
+
+    This License is governed by the laws of [JURISDICTION], and the courts of
+    [CITY / JURISDICTION] have jurisdiction over any dispute arising from it,
+    without prejudice to any mandatory consumer-protection rules. If any
+    provision is held unenforceable, the remaining provisions stay in effect.
+    This License is the entire agreement about the Software between You and
+    Licensor, unless You and Licensor have signed a separate written agreement,
+    which then prevails.
+
+
+================================================================================
+TRADUCCIÓN DE CORTESÍA AL ESPAÑOL
+(En caso de discrepancia prevalece el texto en inglés.)
+================================================================================
+
+LICENCIA DE EVALUACIÓN DE WRITARA
+Versión 1.0
+
+Copyright (c) 2026 [NOMBRE LEGAL COMPLETO DEL TITULAR DE LOS DERECHOS]
+(el "Licenciante"). Todos los derechos reservados.
+
+"Writara" es el software, el código fuente, la documentación y los demás
+recursos de este repositorio (el "Software"). "Usted" es la persona o entidad
+que ejerce los permisos de esta Licencia.
+
+
+1. CÓDIGO DISPONIBLE, NO ABIERTO
+
+   El Software se pone a disposición para poder leerlo y evaluarlo. No es
+   software de código abierto. Salvo los permisos limitados de la Sección 2, el
+   Licenciante se reserva todos los derechos sobre el Software. No se concede
+   ningún otro derecho de forma implícita ni por ningún otro medio.
+
+
+2. USO PERMITIDO
+
+   Sujeto a esta Licencia y sin coste, Usted puede:
+
+   (a) leer y revisar el código fuente;
+
+   (b) descargar, instalar y ejecutar el Software en sus propios equipos con
+       fines personales, educativos o de evaluación interna, incluida la
+       revisión técnica y comercial (due diligence) por parte de una empresa o
+       inversor que estudie una licencia o la adquisición del Software; y
+
+   (c) realizar modificaciones privadas para los fines del apartado (b).
+
+   La evaluación por parte de una persona jurídica se limita a sesenta (60) días
+   desde el primer uso, salvo que el Licenciante acepte ampliarla por escrito.
+
+
+3. RESTRICCIONES
+
+   Sin permiso previo y por escrito del Licenciante, Usted no puede:
+
+   (a) usar el Software en producción ni con ningún fin comercial, incluido
+       explotar un negocio con él u ofrecer el Software, o funcionalidades
+       derivadas de él, a terceros como servicio, como producto o como parte de
+       un producto;
+
+   (b) copiar, publicar, distribuir, sublicenciar, vender, alquilar, prestar ni
+       poner de otro modo a disposición de terceros el Software o cualquier
+       versión modificada;
+
+   (c) eliminar o alterar los avisos de copyright ni esta Licencia; ni
+
+   (d) usar el nombre "Writara" ni el del Licenciante para respaldar o promover
+       ningún producto o servicio. Esta Licencia no concede ningún derecho de
+       marca.
+
+   Conservar copias privadas para los fines de la Sección 2 no infringe los
+   apartados (a) ni (b).
+
+
+4. TITULARIDAD
+
+   El Software se licencia, no se vende. El Licenciante conserva todos los
+   derechos, títulos e intereses sobre el Software, incluidos todos los derechos
+   de propiedad intelectual. El Licenciante puede utilizar sin obligación ni
+   compensación cualquier comentario o sugerencia que Usted aporte.
+
+
+5. CONTRIBUCIONES
+
+   Si Usted envía una contribución (código, documentación u otro material) a
+   este proyecto, declara que tiene derecho a hacerlo y, en la máxima medida
+   permitida por la ley, cede al Licenciante todos los derechos sobre ella.
+   Cuando la cesión no sea posible según la ley aplicable, Usted concede al
+   Licenciante una licencia perpetua, mundial, irrevocable, gratuita,
+   transferible y sublicenciable para usar, modificar, distribuir y relicenciar
+   la contribución bajo cualquier condición, incluidas condiciones propietarias.
+   El Licenciante puede exigir un acuerdo escrito aparte antes de aceptar una
+   contribución.
+
+
+6. COMPONENTES DE TERCEROS
+
+   El Software utiliza componentes de terceros con sus propias licencias (véase
+   THIRD_PARTY_LICENSES.md). Esta Licencia no modifica ni sustituye esas
+   condiciones, y sus derechos sobre dichos componentes se rigen por ellas.
+
+
+7. LICENCIA COMERCIAL Y ADQUISICIÓN
+
+   Para cualquier uso que exceda la Sección 2, o para tratar una licencia
+   comercial o la adquisición del Software, escriba a: [CORREO DE CONTACTO].
+
+
+8. RESOLUCIÓN
+
+   Esta Licencia termina automáticamente si Usted la incumple. Tras la
+   terminación debe dejar de usar el Software y eliminar todas las copias que
+   tenga. Las Secciones 1, 3, 4, 5, 8, 9, 10 y 11 siguen vigentes tras la
+   terminación.
+
+
+9. SIN GARANTÍA
+
+   EL SOFTWARE SE ENTREGA "TAL CUAL", SIN GARANTÍA DE NINGUNA CLASE, EXPRESA O
+   IMPLÍCITA, INCLUIDAS LAS GARANTÍAS DE COMERCIABILIDAD, IDONEIDAD PARA UN FIN
+   DETERMINADO Y NO INFRACCIÓN.
+
+
+10. LIMITACIÓN DE RESPONSABILIDAD
+
+    EN LA MÁXIMA MEDIDA PERMITIDA POR LA LEY, EL LICENCIANTE NO SERÁ
+    RESPONSABLE DE NINGUNA RECLAMACIÓN, DAÑO U OTRA RESPONSABILIDAD, YA SEA
+    CONTRACTUAL, EXTRACONTRACTUAL O DE OTRO TIPO, DERIVADA DEL SOFTWARE O DE SU
+    USO.
+
+
+11. DISPOSICIONES GENERALES
+
+    Esta Licencia se rige por las leyes de [JURISDICCIÓN], y los tribunales de
+    [CIUDAD / JURISDICCIÓN] serán competentes para cualquier controversia
+    derivada de ella, sin perjuicio de las normas imperativas de protección de
+    consumidores. Si alguna disposición resulta inaplicable, las demás seguirán
+    vigentes. Esta Licencia constituye el acuerdo completo sobre el Software
+    entre Usted y el Licenciante, salvo que ambos hayan firmado un acuerdo
+    escrito distinto, que entonces prevalecerá.

@@ -14,10 +14,14 @@
     <div style="display:flex;gap:8px;align-items:center;flex-shrink:0">
       <span class="badge badge--{{ project.status }}">{{ project.get_status_display }}</span>
       <span style="font-size:0.8rem;color:var(--text-3)">{{ total_words }} palabras{% if project.word_goal %} / {{ project.word_goal }}{% endif %}</span>
-      <form method="post" action="/projects/{{ project.pk }}/delete/" onsubmit="return confirm('¿Eliminar el proyecto «{{ project.name }}»? Esta acción no se puede deshacer.')">
+      {% if project.is_general %}
+      <span class="tag" title="Aquí van las notas sueltas y las capturas rápidas. No se puede eliminar.">Proyecto general</span>
+      {% else %}
+      <form method="post" action="/projects/{{ project.pk }}/delete/" onsubmit="return confirm('¿Eliminar el proyecto «{{ project.name|escapejs }}» y todo su contenido (secciones, personajes, tareas y notas)? Esta acción no se puede deshacer.')">
         {% csrf_token %}
         <button type="submit" class="btn btn--danger btn--sm">Eliminar proyecto</button>
       </form>
+      {% endif %}
     </div>
   </div>
 
@@ -40,6 +44,10 @@
     <button class="tab-btn" data-tab="timeline" onclick="switchTab('timeline')"
             style="padding:10px 20px;background:none;border:none;border-bottom:2px solid transparent;color:var(--text-2);font-size:0.875rem;font-weight:500;cursor:pointer;font-family:inherit">
       📅 Línea temporal
+    </button>
+    <button class="tab-btn" data-tab="notes" onclick="switchTab('notes')"
+            style="padding:10px 20px;background:none;border:none;border-bottom:2px solid transparent;color:var(--text-2);font-size:0.875rem;font-weight:500;cursor:pointer;font-family:inherit">
+      🗒 Notas ({{ notes|length|add:inbox_notes|length }})
     </button>
     <button class="tab-btn" data-tab="tasks" onclick="switchTab('tasks')"
             style="padding:10px 20px;background:none;border:none;border-bottom:2px solid transparent;color:var(--text-2);font-size:0.875rem;font-weight:500;cursor:pointer;font-family:inherit">
@@ -146,6 +154,56 @@
   </div>
 
   <!-- ─── TAB: TAREAS ─────────────────────────── -->
+  <!-- ─── TAB: NOTAS ─────────────────────────── -->
+  <div id="tab-notes" class="tab-content" style="display:none">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:8px;flex-wrap:wrap">
+      <div class="section-title" style="margin:0">{{ notes|length }} nota{{ notes|length|pluralize }}{% if inbox_notes %} · {{ inbox_notes|length }} en la bandeja{% endif %}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <a href="/notes/?project={{ project.pk }}" class="btn btn--ghost btn--sm">⌕ Buscar y filtrar</a>
+        <a href="/notes/graph/?project={{ project.pk }}" class="btn btn--ghost btn--sm">◎ Grafo</a>
+        <a href="/notes/new/?project={{ project.pk }}" class="btn btn--primary btn--sm">+ Nueva nota</a>
+      </div>
+    </div>
+
+    {% if inbox_notes %}
+    <div class="mb-6">
+      <div class="section-title">📥 Bandeja de entrada ({{ inbox_notes|length }})</div>
+      <div class="card-grid">
+        {% for note in inbox_notes %}
+        <a href="/notes/{{ note.slug }}/edit/" class="card">
+          <div class="card__title">{{ note.title }}</div>
+          <div class="card__preview">{{ note.content|truncatechars:80 }}</div>
+          <div class="card__meta"><span>hace {{ note.created_at|timesince }}</span></div>
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    {% if notes %}
+    <div class="card-grid">
+      {% for note in notes %}
+      <a href="/notes/{{ note.slug }}/" class="card">
+        <div class="card__title">{{ note.title }}</div>
+        {% if note.content %}<div class="card__preview">{{ note.content|truncatechars:100 }}</div>{% endif %}
+        <div class="card__footer">
+          <div style="display:flex;gap:4px;flex-wrap:wrap">
+            {% for tag in note.tags.all %}<span class="tag">{{ tag.name }}</span>{% endfor %}
+          </div>
+          <span class="text-xs text-muted">{{ note.updated_at|date:"d M" }}</span>
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+    {% elif not inbox_notes %}
+    <div class="empty-state" style="padding:40px">
+      <span class="empty-state__icon" style="font-size:1.8rem">🗒</span>
+      <div class="empty-state__title">Sin notas en este proyecto</div>
+      <div class="empty-state__desc">Guarda ideas, investigación y apuntes. Enlaza unas con otras escribiendo [[nombre de nota]].</div>
+    </div>
+    {% endif %}
+  </div>
+
   <div id="tab-tasks" class="tab-content" style="display:none">
     <div style="display:flex;gap:8px;margin-bottom:20px">
       <input type="text" id="new-task-input" class="form-input" placeholder="Nueva tarea…" style="max-width:360px"
@@ -307,7 +365,14 @@
       btn.style.borderBottomColor = active ? 'var(--accent)' : 'transparent';
       btn.style.color = active ? 'var(--accent)' : 'var(--text-2)';
     });
+    if (history.replaceState) history.replaceState(null, '', '#' + tab);   // /projects/1/#notes se puede enlazar
   }
+  // Abrir la pestaña indicada en la URL (p. ej. al volver desde una nota)
+  (function () {
+    const wanted = location.hash.slice(1);
+    if (wanted && document.getElementById('tab-' + wanted)) switchTab(wanted);
+  })();
+  window.WRITARA_PROJECT_ID = PROJECT_ID;   // la captura rápida (+) guarda en este proyecto
 
   // ── Sections ─────────────────────────────────────
   function addSection() {

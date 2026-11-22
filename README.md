@@ -1,189 +1,141 @@
 # Writara
 
-Herramienta de escritura y conocimiento personal. Editor rico, notas con wiki links, grafo de conocimiento, proyectos narrativos con biblia y línea temporal, análisis textual y búsqueda global.
+**Escritura, notas y proyectos en un solo lugar.** Un editor por páginas, proyectos narrativos con biblia y línea temporal, y notas enlazadas con grafo que viven dentro de cada proyecto. Auto-hospedable, multiusuario y sin dependencias de servicios externos para funcionar.
 
-Construido con Django + PostgreSQL. Auto-hosteable, open source.
+`v1.1.0` · Django 6 · PostgreSQL / SQLite · [Licencia de evaluación](LICENSE)
+
+> Writara es **código disponible (source-available)**, no código abierto: puedes leerlo y evaluarlo, pero su uso comercial, en producción o la redistribución requieren permiso. Consulta la sección [Licencia](#licencia).
 
 ---
 
-## Arranque rápido
+## Funciones
 
-### Requisitos
+**Escritura**
+- Editor de texto enriquecido (Quill) con autoguardado, historial de versiones, modo enfoque y Pomodoro.
+- **Edición por páginas**: elige A3, A4, **A5 (por defecto)**, A6, B5, Carta o Legal; el texto se reparte en hojas con indicador «Página X / N».
+- Exportación a **PDF, ODT y HTML paginados** (con el tamaño de página del documento y número de página), Markdown y texto plano.
+- Análisis textual: densidad léxica, longitud de frases, voz pasiva, palabras frecuentes.
 
-- Docker
-- docker-compose
+**Proyectos**
+- Estructura en secciones, biblia (personajes y lugares), línea temporal y tareas en kanban.
+- **Notas dentro de cada proyecto**: pestaña propia, bandeja de entrada, enlaces `[[nombre de nota]]` con *backlinks*, etiquetas y grafo de conocimiento por proyecto.
+- «Notas generales»: un proyecto especial por usuario para ideas sueltas y capturas rápidas.
 
-### Instalación
+**Interfaz**
+- Captura rápida (+) que guarda en el proyecto que tienes abierto, paleta de comandos (Ctrl+K), búsqueda global y tema oscuro/claro.
+- Multiusuario: cada persona ve solo lo suyo.
+
+## Cómo se organiza
+
+| Concepto | Qué es |
+|---|---|
+| **Documento** | Un texto independiente con su tamaño de página. |
+| **Proyecto** | Agrupa secciones, personajes, lugares, línea temporal, tareas y **notas**. |
+| **Nota** | Texto plano que pertenece a un proyecto. Los enlaces `[[…]]` solo conectan notas **del mismo proyecto**, y una nota se puede mover a otro desde el editor. |
+
+---
+
+## Arranque rápido (Docker)
+
+Requisitos: Docker y Docker Compose.
 
 ```bash
-git clone https://github.com/tu-usuario/writara.git
+git clone <url-del-repositorio> writara
 cd writara
-cp .env.example .env
+cp .env.example .env        # edita SECRET_KEY y la contraseña de PostgreSQL
+docker compose up --build
 ```
 
-Edita `.env` con tus valores:
+La aplicación queda en `http://localhost:8000`. Aplica las migraciones y recoge los estáticos automáticamente. Crea el primer usuario en `/accounts/register/` o con:
 
 ```bash
-nano .env
+docker compose exec web python manage.py createsuperuser
 ```
+
+### Comandos útiles
 
 ```bash
-docker-compose up --build
+docker compose up -d                                   # en segundo plano
+docker compose logs -f web                             # logs
+docker compose down                                    # parar
+docker compose down -v                                 # parar y borrar la base de datos
+docker compose exec web python manage.py migrate       # migraciones manuales
+docker compose exec db psql -U writara -d writara      # consola de PostgreSQL
 ```
 
-La primera vez aplica las migraciones automáticamente. La aplicación estará disponible en `http://localhost:8000`.
+### Acceso desde la red local
 
-### Crear el primer usuario
+Añade tu IP a `ALLOWED_HOSTS` en `.env` (por ejemplo `localhost,127.0.0.1,192.168.1.20`) y reinicia con `docker compose down && docker compose up -d`.
 
-```bash
-docker-compose exec web python manage.py createsuperuser
-```
-
-O registrarse directamente en `/accounts/register/`.
-
----
-
-## Acceso en red local
-
-Para que otros usuarios en la misma red puedan conectarse:
-
-1. Encuentra tu IP local:
-   ```bash
-   hostname -I
-   ```
-
-2. Añade tu IP a `ALLOWED_HOSTS` en `.env`:
-   ```
-   ALLOWED_HOSTS=localhost,127.0.0.1,192.168.1.XX
-   ```
-
-3. Reinicia:
-   ```bash
-   docker-compose down && docker-compose up -d
-   ```
-
-4. Tus compañeros acceden en `http://192.168.1.XX:8000`
-
----
-
-## Comandos útiles
-
-```bash
-# Levantar en segundo plano
-docker-compose up -d
-
-# Ver logs
-docker-compose logs -f web
-
-# Parar
-docker-compose down
-
-# Parar y borrar volúmenes (borra la base de datos)
-docker-compose down -v
-
-# Aplicar migraciones manualmente
-docker-compose exec web python manage.py migrate
-
-# Abrir shell de Django
-docker-compose exec web python manage.py shell
-
-# Acceder a la base de datos
-docker-compose exec db psql -U writara -d writara
-```
-
----
-
-## Variables de entorno
-
-Copia `.env.example` a `.env` y rellena los valores.
-
-| Variable | Descripción | Ejemplo |
-|---|---|---|
-| `SECRET_KEY` | Clave secreta de Django | cadena aleatoria de 50+ chars |
-| `DEBUG` | Modo debug (con `False`, `SECRET_KEY` es obligatoria) | `False` en producción |
-| `ALLOWED_HOSTS` | Hosts permitidos | `localhost,127.0.0.1,192.168.1.10` |
-| `POSTGRES_DB` | Nombre de la base de datos | `writara` |
-| `POSTGRES_USER` | Usuario de PostgreSQL | `writara` |
-| `POSTGRES_PASSWORD` | Contraseña de PostgreSQL | cadena segura |
-| `CSRF_TRUSTED_ORIGINS` | Orígenes https de confianza (opcional, tras proxy/dominio) | `https://writara.example.com` |
-| `WEB_PORT` | Puerto expuesto | `8000` |
-
----
-
-## Desarrollo local sin Docker
+## Desarrollo local (sin Docker)
 
 ```bash
 python -m venv .venv
-source .venv/bin/activate
+source .venv/bin/activate          # en Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-
-# Sin definir POSTGRES_HOST, usa SQLite automáticamente
-python manage.py migrate
+python manage.py migrate           # sin POSTGRES_HOST usa SQLite automáticamente
 python manage.py runserver
 ```
 
-## Páginas
+La exportación a PDF necesita las librerías del sistema de [WeasyPrint](https://doc.courtbouillon.org/weasyprint/stable/first_steps.html) (Pango y Cairo); en la imagen Docker ya vienen incluidas.
 
-El editor muestra el documento en hojas del tamaño elegido en el selector de la barra superior
-(A3, A4, **A5 por defecto**, A6, B5, Carta, Legal). El tamaño se guarda por documento y lo usan
-las exportaciones: PDF y HTML (`@page`, con número de página) y ODT (diseño de página con número en el
-pie). Markdown y texto plano no tienen páginas. La paginación del editor es visual
-(`main/static/js/pagination.js`); el reparto definitivo lo hacen WeasyPrint / LibreOffice.
+## Configuración
+
+Copia `.env.example` a `.env`.
+
+| Variable | Descripción | Ejemplo |
+|---|---|---|
+| `SECRET_KEY` | Clave secreta de Django. **Obligatoria con `DEBUG=False`.** | cadena aleatoria de 50+ caracteres |
+| `DEBUG` | Modo depuración | `False` en producción |
+| `ALLOWED_HOSTS` | Hosts permitidos, separados por comas | `localhost,127.0.0.1` |
+| `CSRF_TRUSTED_ORIGINS` | Orígenes https de confianza (tras proxy o dominio propio) | `https://writara.example.com` |
+| `POSTGRES_DB` · `POSTGRES_USER` · `POSTGRES_PASSWORD` | Base de datos PostgreSQL | `writara` |
+| `POSTGRES_HOST` · `POSTGRES_PORT` | Si no hay `POSTGRES_HOST`, se usa SQLite | `db` · `5432` |
+| `WEB_PORT` | Puerto expuesto por Docker | `8000` |
+
+## Actualizar desde una versión anterior
+
+1. Actualiza el código y `pip install -r requirements.txt`.
+2. `python manage.py migrate`.
+3. **Reinicia el servidor** (con `DEBUG=False` Django mantiene las plantillas en memoria). Con Docker, reconstruye: `docker compose up -d --build`.
+
+**De 1.0.x a 1.1.0:** todas tus notas existentes se mueven al proyecto «Notas generales» de su dueño (los enlaces y el grafo siguen igual) y puedes moverlas a otro proyecto desde el editor. La entrada «Notas» de la barra lateral desaparece: ahora las notas están en la pestaña **Notas** de cada proyecto.
+
+## Estructura del código
+
+```
+main/
+├── apps/
+│   ├── accounts/   usuarios y preferencias
+│   ├── editor/     documentos, versiones, páginas y exportación (PDF, ODT, HTML, Markdown, texto)
+│   ├── projects/   proyectos, estructura, biblia, línea temporal y tareas
+│   ├── notes/      notas de proyecto, enlaces [[ ]], etiquetas y grafo
+│   ├── analysis/   análisis de texto
+│   └── search/     búsqueda global y paleta de comandos
+├── static/         CSS y JavaScript propio (paginación)
+└── templates/
+tests_js/           pruebas de JavaScript (Node)
+```
 
 ## Tests
 
 ```bash
 python manage.py test main
-node tests_js/pagination.test.js   # algoritmo de paginación (también lo lanza la suite si hay Node)
+node tests_js/pagination.test.js
 ```
 
-Cubren saneado de HTML, exportadores (MD/HTML/TXT/ODT/PDF), enlaces wiki, etiquetas por usuario, proyectos, análisis de texto y registro/perfil.
+La suite cubre saneado de HTML, exportadores, notas y proyectos, migraciones, análisis de texto y, si [Playwright](https://playwright.dev/python/) está instalado, el guardado de notas y las pestañas del proyecto en un navegador real (se omiten solas si no lo está).
 
----
+## Pila tecnológica
 
-## Imagen en Docker Hub
-
-```bash
-docker pull moisesrodriguezquintero/writara:latest
-```
-
-Para usar la imagen publicada en lugar de construir localmente, cambia en `docker-compose.yml`:
-
-```yaml
-web:
-  image: moisesrodriguezquintero/writara:latest
-  # build: .   ← comentar esta línea
-```
-
----
-
-## Stack
-
-- **Backend**: Django 6
-- **Base de datos**: PostgreSQL 16
-- **Servidor**: Gunicorn
-- **Estáticos**: Whitenoise
-- **Frontend**: Alpine.js, Quill, D3.js (CDN)
-- **Contenedores**: Docker + docker-compose
-
----
-
-## Features
-
-- Editor rico (Quill) con autoguardado, historial de versiones, modo enfoque, Pomodoro
-- Exportación a Markdown, HTML, ODT, texto plano
-- Notas con wiki links `[[nombre]]`, backlinks, tags
-- Grafo de conocimiento interactivo (D3.js)
-- Quick capture global (Ctrl+Shift+N)
-- Proyectos narrativos: estructura, biblia (personajes y lugares), línea temporal, tareas kanban
-- Análisis textual: densidad léxica, voz pasiva, palabras frecuentes
-- Búsqueda global en documentos, notas y proyectos
-- Command Palette (Ctrl+K)
-- Tema oscuro / claro
-- Multiusuario con PostgreSQL
+Django 6 · PostgreSQL 16 / SQLite · Gunicorn · WhiteNoise · WeasyPrint · Alpine.js, Quill y D3.js (por CDN). Las licencias de los componentes de terceros están en [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
 
 ---
 
 ## Licencia
 
-MIT
+Writara se distribuye bajo la [Licencia de Evaluación de Writara](LICENSE) (versión 1.0): puedes **leer el código y probarlo** con fines personales, educativos o de evaluación interna —incluida la revisión previa a una licencia o adquisición—. El uso comercial o en producción, la redistribución y los trabajos derivados publicados requieren permiso escrito.
+
+Para una licencia comercial o para hablar de la adquisición del proyecto, escribe a **[CORREO DE CONTACTO]**.
+
+Las versiones publicadas antes de la 1.1.0 pudieron distribuirse con otras condiciones; esas copias se rigen por los términos con los que se obtuvieron.

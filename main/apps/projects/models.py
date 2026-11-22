@@ -13,14 +13,39 @@ class Project(models.Model):
     word_goal = models.IntegerField(null=True, blank=True)
     deadline = models.DateField(null=True, blank=True)
     cover_color = models.CharField(max_length=7, default='#6366f1')
+    # Proyecto especial de cada usuario donde viven las notas sueltas y las capturas
+    # rápidas que no pertenecen a ningún proyecto concreto. No se puede eliminar.
+    is_general = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ['-updated_at']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['owner'], condition=models.Q(is_general=True),
+                name='one_general_project_per_owner',
+            ),
+        ]
 
     def __str__(self):
         return self.name
+
+
+GENERAL_PROJECT_NAME = 'Notas generales'
+
+
+def general_project_for(user):
+    """Proyecto «Notas generales» del usuario (se crea la primera vez que hace falta)."""
+    project, _ = Project.objects.get_or_create(
+        owner=user, is_general=True,
+        defaults={
+            'name': GENERAL_PROJECT_NAME,
+            'description': 'Notas sueltas y capturas rápidas que no pertenecen a ningún proyecto.',
+            'cover_color': '#8b6f4e',
+        },
+    )
+    return project
 
 class Section(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='sections')

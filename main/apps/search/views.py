@@ -14,8 +14,9 @@ def search(request):
     if q and len(q) >= 2:
         docs = Document.objects.filter(owner=request.user, is_archived=False).filter(
             Q(title__icontains=q) | Q(content__icontains=q))[:8]
-        notes = Note.objects.filter(owner=request.user).filter(
-            Q(title__icontains=q) | Q(content__icontains=q))[:8]
+        notes = (Note.objects.filter(owner=request.user)
+                 .filter(Q(title__icontains=q) | Q(content__icontains=q))
+                 .select_related('project').prefetch_related('tags')[:8])
         projects = Project.objects.filter(owner=request.user).filter(
             Q(name__icontains=q) | Q(description__icontains=q))[:5]
     prefs, _ = UserPreferences.objects.get_or_create(user=request.user)
@@ -30,9 +31,9 @@ def palette_search(request):
     results = []
     if q and len(q) >= 1:
         docs = Document.objects.filter(owner=request.user, is_archived=False, title__icontains=q)[:5]
-        notes = Note.objects.filter(owner=request.user, title__icontains=q)[:5]
+        notes = Note.objects.filter(owner=request.user, title__icontains=q).select_related('project')[:5]
         for d in docs:
             results.append({'type': 'doc', 'title': d.title, 'url': f'/editor/{d.pk}/', 'icon': '📄'})
         for n in notes:
-            results.append({'type': 'note', 'title': n.title, 'url': f'/notes/{n.slug}/', 'icon': '🗒'})
+            results.append({'type': 'note', 'title': f'{n.title} · {n.project.name}', 'url': f'/notes/{n.slug}/', 'icon': '🗒'})
     return JsonResponse({'results': results})

@@ -16,6 +16,8 @@ class Tag(models.Model):
 
 class Note(models.Model):
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='notes')
+    # Toda nota pertenece a un proyecto; si no se indica, va a «Notas generales».
+    project = models.ForeignKey('projects.Project', on_delete=models.CASCADE, related_name='notes')
     title = models.CharField(max_length=255)
     slug = models.SlugField(max_length=255, blank=True)
     content = models.TextField(blank=True)
@@ -30,6 +32,9 @@ class Note(models.Model):
         unique_together = [('owner', 'slug')]
 
     def save(self, *args, **kwargs):
+        if self.project_id is None:
+            from main.apps.projects.models import general_project_for
+            self.project = general_project_for(self.owner)
         if not self.slug:
             base = title_to_slug(self.title)
             slug = base

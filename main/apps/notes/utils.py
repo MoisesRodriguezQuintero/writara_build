@@ -19,17 +19,18 @@ def title_to_slug(title):
     return f'{slug}-nota' if slug in RESERVED_SLUGS else slug
 
 
-def resolve_note(user, title):
-    """Nota del usuario a la que apunta [[title]] (por título y, si no, por slug)."""
+def resolve_note(project, title):
+    """Nota DEL PROYECTO a la que apunta [[title]] (por título y, si no, por slug).
+    Los enlaces solo conectan notas del mismo proyecto."""
     from .models import Note
     title = title.strip()
     if not title:
         return None
-    return (Note.objects.filter(owner=user, title__iexact=title).first()
-            or Note.objects.filter(owner=user, slug=title_to_slug(title)).first())
+    return (Note.objects.filter(project=project, title__iexact=title).first()
+            or Note.objects.filter(project=project, slug=title_to_slug(title)).first())
 
 
-def parse_wiki_links(content, user):
+def parse_wiki_links(content, project):
     """Convierte el texto plano de una nota en HTML seguro: escapa todo el texto,
     sustituye [[enlaces]] por <a> y respeta párrafos y saltos de línea."""
     content = (content or '').replace('\r\n', '\n')
@@ -37,12 +38,12 @@ def parse_wiki_links(content, user):
     for m in WIKI_RE.finditer(content):
         parts.append(escape(content[last:m.start()]))
         title = m.group(1).strip()
-        note = resolve_note(user, title)
+        note = resolve_note(project, title)
         if note:
             url = reverse('notes:detail', args=[note.slug])
             parts.append(f'<a class="wiki-link" href="{escape(url)}">{escape(title)}</a>')
         else:
-            url = reverse('notes:create') + '?' + urlencode({'title': title})
+            url = reverse('notes:create') + '?' + urlencode({'title': title, 'project': project.pk})
             parts.append(f'<a class="wiki-link wiki-link--new" href="{escape(url)}">{escape(title)} +</a>')
         last = m.end()
     parts.append(escape(content[last:]))
@@ -57,7 +58,7 @@ def sync_links(note):
     from .models import NoteLink
     targets = {}
     for m in WIKI_RE.finditer(note.content):
-        target = resolve_note(note.owner, m.group(1))
+        target = resolve_note(note.project, m.group(1))
         if target and target.pk != note.pk:
             targets[target.pk] = target
     NoteLink.objects.filter(from_note=note).delete()
@@ -66,11 +67,19 @@ def sync_links(note):
     )
 
 
-def sync_incoming(note, *titles):
-    """Re-sincroniza los enlaces de las notas que mencionan alguno de `titles`:
-    así un [[enlace]] escrito antes de que existiera la nota destino (o antes de
-    renombrarla) se conecta/desconecta sin tener que volver a guardar la nota origen."""
+def resync_mentions(project, titles, exclude_pk=None):
+    """Re-sincroniza los enlaces de las notas del proyecto que mencionan alguno de `titles`."""
     from .models import Note
     for title in {t.strip() for t in titles if t and t.strip()}:
-        for other in Note.objects.filter(owner=note.owner, content__icontains=title).exclude(pk=note.pk):
+        others = Note.objects.filter(project=project, content__icontains=title)
+        if exclude_pk is not None:
+            others = others.exclude(pk=exclude_pk)
+        for other in others:
             sync_links(other)
+
+
+def sync_incoming(note, *titles):
+    """Re-sincroniza los enlaces de las notas de su proyecto que mencionan alguno de
+    `titles`: así un [[enlace]] escrito antes de que existiera la nota destino (o antes
+    de renombrarla) se conecta/desconecta sin tener que volver a guardar la nota origen."""
+    resync_mentions(note.project, titles, exclude_pk=note.pk)

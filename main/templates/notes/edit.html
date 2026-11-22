@@ -15,7 +15,11 @@
              style="background:none;border:none;color:var(--text-2);font-size:0.78rem;width:60px;padding:2px 4px">
     </div>
 
-    <span style="font-size:0.73rem;color:var(--text-3);margin-left:auto" id="note-status">Guardado</span>
+    <select id="note-project" class="form-input form-select" title="Proyecto de la nota"
+            style="width:auto;max-width:170px;padding:4px 26px 4px 8px;font-size:0.78rem;margin-left:auto">
+      {% for p in projects %}<option value="{{ p.pk }}"{% if p.pk == note.project_id %} selected{% endif %}>📁 {{ p.name }}</option>{% endfor %}
+    </select>
+    <span style="font-size:0.73rem;color:var(--text-3)" id="note-status">Guardado</span>
     <button class="btn btn--primary btn--sm" onclick="saveNote()">Guardar</button>
     <a href="/notes/{{ note.slug }}/" class="btn btn--ghost btn--sm">Ver</a>
   </div>
@@ -29,6 +33,7 @@
 {{ note_tags|json_script:"note-tags-data" }}
 <script>
 const NOTE_SLUG = '{{ note.slug|escapejs }}';
+window.WRITARA_PROJECT_ID = {{ note.project_id }};   // la captura rápida va a este proyecto
 let tags = [];
 try { tags = JSON.parse(document.getElementById('note-tags-data').textContent); }
 catch (e) { console.error('No se pudieron leer las etiquetas de la nota:', e); }   // el guardado debe seguir funcionando
@@ -48,6 +53,12 @@ function scheduleSave() {
 
 document.getElementById('note-content').addEventListener('input', scheduleSave);
 document.getElementById('note-title').addEventListener('input', scheduleSave);
+// Mover la nota a otro proyecto: se guarda enseguida
+document.getElementById('note-project').addEventListener('change', () => {
+  markDirty();
+  saveNote().then(() => showToast('Nota movida a «' +
+    document.getElementById('note-project').selectedOptions[0].textContent.replace('📁 ', '') + '»'));
+});
 
 function addTagFromInput() {
   const inp = document.getElementById('tag-input');
@@ -89,13 +100,14 @@ async function saveNote(opts = {}) {
     const r = await fetch(`/notes/${NOTE_SLUG}/save/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
-      body: JSON.stringify({ title, content, tags }),
+      body: JSON.stringify({ title, content, tags, project: Number(document.getElementById('note-project').value) }),
       keepalive: !!opts.keepalive
     });
     if (r.redirected) throw new Error('SESSION');          // sesión caducada: Django redirige al login
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const data = await r.json();
     dirty = false;
+    window.WRITARA_PROJECT_ID = data.project.id;
     document.getElementById('note-status').textContent = `Guardado ${data.saved_at}`;
     if (!opts.keepalive) showToast('Nota guardada');
   } catch (e) {

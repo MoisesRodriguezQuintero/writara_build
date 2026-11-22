@@ -15,6 +15,7 @@
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
         <div style="width:12px;height:12px;border-radius:50%;background:{{ p.cover_color }};flex-shrink:0"></div>
         <div class="card__title" style="margin:0">{{ p.name }}</div>
+        {% if p.is_general %}<span class="tag" style="margin-left:auto">General</span>{% endif %}
       </div>
       {% if p.description %}
       <div class="card__preview">{{ p.description|truncatechars:90 }}</div>
@@ -22,7 +23,8 @@
       <div class="card__footer">
         <span class="badge badge--{{ p.status }}">{{ p.get_status_display }}</span>
         <div style="display:flex;gap:10px">
-          <span class="text-xs text-muted">{{ p.sections.count }} secciones</span>
+          <span class="text-xs text-muted">{{ p.section_count }} secciones</span>
+          <span class="text-xs text-muted">{{ p.note_count }} nota{{ p.note_count|pluralize }}</span>
           {% if p.deadline %}<span class="text-xs text-muted">{{ p.deadline|date:"d M Y" }}</span>{% endif %}
         </div>
       </div>
